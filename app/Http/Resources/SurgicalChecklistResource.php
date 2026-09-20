@@ -15,6 +15,8 @@ class SurgicalChecklistResource extends JsonResource
             'step' => $this->step,
             'items' => $this->items,
             'validated_by' => $this->validated_by,
+            'validator_label' => $this->whenLoaded('validator', fn () => $this->validator ? trim("{$this->validator->first_name} {$this->validator->last_name}") : null),
+            'validator_role' => $this->whenLoaded('validator', fn () => $this->validator?->getRoleNames()->first()),
             'validated_at' => $this->validated_at,
             'created_at' => $this->created_at,
         ];

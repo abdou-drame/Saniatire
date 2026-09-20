@@ -9,19 +9,34 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { PatientPicker } from "@/components/clinical/patient-picker";
+import { SiteSelectField } from "@/components/clinical/site-select-field";
 import { useAdmitPatient, useWardsWithBeds } from "@/hooks/use-hospitalizations";
+import { usePractitioners } from "@/hooks/use-practitioners";
+import { useSiteSelection } from "@/hooks/use-site-selection";
 import { apiErrorMessage } from "@/lib/api-error";
+import type { Patient } from "@/types/api";
 
 export interface AdmitPatientDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Patient préréempli (ex. depuis la fiche patient). Si absent, un champ ID patient éditable est proposé. */
+  /** Patient préréempli (ex. depuis la fiche patient). Si absent, un sélecteur de recherche par nom est proposé. */
   patientId?: number;
-  siteId: number | null;
+  /**
+   * Site fixé par l'appelant (ex. le site de la consultation en cours) — le
+   * sélecteur de site n'est alors pas affiché. Omettre cette prop pour que
+   * le dialogue résolve lui-même le site : automatiquement si l'utilisateur
+   * n'est rattaché qu'à un seul site, sinon via un sélecteur explicite (cas
+   * de l'administrateur, qui supervise plusieurs sites par conception).
+   */
+  fixedSiteId?: number | null;
   attendingPhysicianId: number;
+  /** Service pré-sélectionné (ex. clic sur une tuile de lit libre). */
+  initialWardId?: number;
+  /** Lit pré-sélectionné (ex. clic sur une tuile de lit libre) — doit appartenir à `initialWardId`. */
+  initialBedId?: number;
   onAdmitted?: () => void;
 }
 
@@ -36,34 +51,52 @@ export function AdmitPatientDialog({
   open,
   onOpenChange,
   patientId,
-  siteId,
+  fixedSiteId,
   attendingPhysicianId,
+  initialWardId,
+  initialBedId,
   onAdmitted,
 }: AdmitPatientDialogProps) {
-  const [patientIdInput, setPatientIdInput] = useState(patientId ? String(patientId) : "");
-  const [wardId, setWardId] = useState("");
-  const [bedId, setBedId] = useState("");
-  const [physicianId, setPhysicianId] = useState(String(attendingPhysicianId));
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [wardId, setWardId] = useState(initialWardId ? String(initialWardId) : "");
+  const [bedId, setBedId] = useState(initialBedId ? String(initialBedId) : "");
+  const [physicianId, setPhysicianId] = useState("");
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [admittedId, setAdmittedId] = useState<number | null>(null);
 
   const wardsQuery = useWardsWithBeds();
+  const practitionersQuery = usePractitioners();
   const admitPatient = useAdmitPatient();
+  const siteSelection = useSiteSelection();
+  const siteId = fixedSiteId !== undefined ? fixedSiteId : siteSelection.siteId;
+  const showSiteSelector = fixedSiteId === undefined && siteSelection.needsManualSelection;
 
   useEffect(() => {
     if (!open) {
-      setPatientIdInput(patientId ? String(patientId) : "");
-      setWardId("");
-      setBedId("");
-      setPhysicianId(String(attendingPhysicianId));
+      setSelectedPatient(null);
+      setWardId(initialWardId ? String(initialWardId) : "");
+      setBedId(initialBedId ? String(initialBedId) : "");
+      setPhysicianId("");
       setReason("");
       setError(null);
       setAdmittedId(null);
     }
-  }, [open, patientId, attendingPhysicianId]);
+  }, [open, initialWardId, initialBedId]);
 
-  const resolvedPatientId = patientId ?? (patientIdInput.trim() ? Number(patientIdInput) : null);
+  // Préremplit le médecin responsable avec l'utilisateur courant dès que la
+  // liste des praticiens est chargée et qu'il en fait partie — sans forcer
+  // un ID qui ne correspondrait à aucune option du sélecteur (ex. un
+  // administrateur ou un membre de la direction qui admet pour le compte
+  // d'un médecin doit choisir explicitement).
+  useEffect(() => {
+    if (!open || physicianId) return;
+    if (practitionersQuery.data?.some((p) => p.id === attendingPhysicianId)) {
+      setPhysicianId(String(attendingPhysicianId));
+    }
+  }, [open, physicianId, practitionersQuery.data, attendingPhysicianId]);
+
+  const resolvedPatientId = patientId ?? selectedPatient?.id ?? null;
 
   const wards = wardsQuery.data ?? [];
   const selectedWard = wards.find((w) => String(w.id) === wardId);
@@ -113,22 +146,25 @@ export function AdmitPatientDialog({
           </div>
         ) : (
           <div className="space-y-4">
-            {!siteId && (
-              <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
-                Aucun site associé — impossible d'admettre ce patient.
-              </p>
+            {showSiteSelector ? (
+              <SiteSelectField
+                siteId={siteSelection.siteId}
+                onChange={siteSelection.setSiteId}
+                options={siteSelection.options}
+                isLoading={siteSelection.isLoading}
+              />
+            ) : (
+              !siteId && (
+                <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+                  Aucun site associé — impossible d'admettre ce patient.
+                </p>
+              )
             )}
 
             {patientId === undefined && (
               <div>
-                <Label>ID patient</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={patientIdInput}
-                  onChange={(e) => setPatientIdInput(e.target.value)}
-                  placeholder="ex. 42"
-                />
+                <Label>Patient</Label>
+                <PatientPicker value={selectedPatient} onChange={setSelectedPatient} />
               </div>
             )}
 
@@ -167,13 +203,19 @@ export function AdmitPatientDialog({
             </div>
 
             <div>
-              <Label>ID médecin responsable</Label>
-              <Input
-                type="number"
-                min={1}
+              <Label>Médecin responsable</Label>
+              <Select
                 value={physicianId}
                 onChange={(e) => setPhysicianId(e.target.value)}
-              />
+                disabled={practitionersQuery.isLoading}
+              >
+                <option value="">Sélectionner...</option>
+                {(practitionersQuery.data ?? []).map((practitioner) => (
+                  <option key={practitioner.id} value={practitioner.id}>
+                    {practitioner.first_name} {practitioner.last_name}
+                  </option>
+                ))}
+              </Select>
             </div>
 
             <div>

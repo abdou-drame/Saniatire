@@ -8,8 +8,13 @@ export interface CreatePatientInput {
   sex: "M" | "F";
   birth_date: string;
   phone?: string;
+  email?: string;
+  address?: string;
+  profession?: string;
+  nationality?: string;
   emergency_contact_name?: string;
   emergency_contact_phone?: string;
+  emergency_contact_relationship?: string;
 }
 
 export interface CreatePatientResult {

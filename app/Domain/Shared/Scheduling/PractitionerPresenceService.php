@@ -12,9 +12,22 @@ use Illuminate\Support\Collection;
 class PractitionerPresenceService
 {
     /**
+     * Types de work_schedule qui ne comptent jamais comme un créneau de
+     * consultation réservable : garde/astreinte sont de la couverture
+     * d'urgence/sur-appel, pas des plages ouvertes à la prise de RDV.
+     * Règle globale — s'applique à isPresent() (donc à toute création/
+     * modification de RDV, staff comme patient) et, sur demande explicite
+     * du caller, à planningFor() (voir PatientPortalController). Le staff
+     * garde une échappatoire : force_override + permission
+     * appointments.override_planning (AppointmentController::presenceCheckResponse).
+     */
+    public const ON_CALL_TYPES = ['garde', 'astreinte'];
+
+    /**
      * Theoretical presence of a practitioner on [startsAt, endsAt): absent
-     * if a validated leave covers the day, otherwise present if a
-     * work_schedule (normal/garde/astreinte) covers the whole slot.
+     * if a validated leave covers the day, otherwise present only if a
+     * 'normal' work_schedule covers the whole slot — self::ON_CALL_TYPES
+     * never count here, on-call hours are not bookable consultation time.
      *
      * A practitioner with zero work_schedules configured at all is treated
      * as unrestricted rather than permanently absent — RH planning is
@@ -46,7 +59,7 @@ class PractitionerPresenceService
         if ($covering->isEmpty()) {
             return [
                 'present' => false,
-                'reason' => 'Aucun horaire planifié (normal, garde ou astreinte) ne couvre ce créneau.',
+                'reason' => 'Aucun horaire normal planifié ne couvre ce créneau (garde/astreinte non réservables).',
             ];
         }
 
@@ -54,11 +67,12 @@ class PractitionerPresenceService
     }
 
     /**
-     * work_schedule rows (normal/garde/astreinte) whose window fully
-     * contains [startsAt, endsAt) on startsAt's calendar day — narrowed in
-     * SQL by day (date match or recurring jour_semaine match), finished in
-     * PHP for the time-window comparison, mirroring the "SQL narrows,
-     * PHP finishes" portability doctrine used by Appointment::hasConflict().
+     * 'normal' work_schedule rows only (self::ON_CALL_TYPES excluded, see
+     * isPresent()) whose window fully contains [startsAt, endsAt) on
+     * startsAt's calendar day — narrowed in SQL by day (date match or
+     * recurring jour_semaine match), finished in PHP for the time-window
+     * comparison, mirroring the "SQL narrows, PHP finishes" portability
+     * doctrine used by Appointment::hasConflict().
      */
     private function schedulesCovering(int $structureId, int $userId, CarbonInterface $startsAt, CarbonInterface $endsAt): Collection
     {
@@ -77,6 +91,7 @@ class PractitionerPresenceService
         return WorkSchedule::query()
             ->where('structure_id', $structureId)
             ->where('user_id', $userId)
+            ->whereNotIn('type', self::ON_CALL_TYPES)
             ->where(function ($q) use ($day) {
                 $q->whereDate('date', $day->toDateString())
                     ->orWhere(function ($q2) use ($day) {
@@ -109,12 +124,19 @@ class PractitionerPresenceService
      * Combined planning over a period: work_schedule entries expanded day
      * by day across [from, to], with days covered by a validated leave
      * excluded from the horaires list and reported separately.
+     *
+     * $excludedTypes lets a caller drop garde/astreinte rows entirely (see
+     * PatientPortalController::creneauxDisponibles, which never offers
+     * on-call hours as bookable slots to a patient) while every other
+     * caller — the staff Plannings screen in particular — keeps seeing the
+     * full picture by passing none.
      */
-    public function planningFor(int $structureId, int $userId, CarbonInterface $from, CarbonInterface $to): array
+    public function planningFor(int $structureId, int $userId, CarbonInterface $from, CarbonInterface $to, array $excludedTypes = []): array
     {
         $schedules = WorkSchedule::query()
             ->where('structure_id', $structureId)
             ->where('user_id', $userId)
+            ->when($excludedTypes !== [], fn ($q) => $q->whereNotIn('type', $excludedTypes))
             ->where(function ($q) use ($from, $to) {
                 $q->whereDate('date', '>=', $from->toDateString())->whereDate('date', '<=', $to->toDateString())
                     ->orWhereNull('date');
@@ -173,7 +195,7 @@ class PractitionerPresenceService
     {
         $schedules = WorkSchedule::query()
             ->where('structure_id', $structureId)
-            ->whereIn('type', ['garde', 'astreinte'])
+            ->whereIn('type', self::ON_CALL_TYPES)
             ->when($siteId, fn ($q, $id) => $q->where('site_id', $id))
             ->where(function ($q) use ($from, $to) {
                 $q->whereDate('date', '>=', $from->toDateString())->whereDate('date', '<=', $to->toDateString())
@@ -220,7 +242,7 @@ class PractitionerPresenceService
     {
         return WorkSchedule::query()
             ->where('structure_id', $structureId)
-            ->whereIn('type', ['garde', 'astreinte'])
+            ->whereIn('type', self::ON_CALL_TYPES)
             ->when($siteId, fn ($q, $id) => $q->where('site_id', $id))
             ->where(function ($q) use ($day) {
                 $q->whereDate('date', $day->toDateString())

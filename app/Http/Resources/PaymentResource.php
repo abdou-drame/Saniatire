@@ -23,6 +23,12 @@ class PaymentResource extends JsonResource
             'numero_recu' => $this->numero_recu,
             'paid_at' => $this->paid_at,
             'created_at' => $this->created_at,
+            'caissier_label' => $this->whenLoaded('caissier', fn () => $this->caissier ? trim("{$this->caissier->first_name} {$this->caissier->last_name}") : null),
+            'invoice' => $this->whenLoaded('invoice', fn () => $this->invoice ? [
+                'id' => $this->invoice->id,
+                'numero' => $this->invoice->numero,
+                'patient_id' => $this->invoice->patient_id,
+            ] : null),
         ];
     }
 }

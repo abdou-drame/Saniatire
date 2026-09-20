@@ -219,7 +219,13 @@ class Step6RhTest extends TestCase
         $this->assertFalse(Activity::where('log_name', 'derogation_planning')->exists());
     }
 
-    public function test_an_appointment_can_be_created_during_a_garde_outside_normal_work_schedule(): void
+    /**
+     * Règle globale (PractitionerPresenceService::ON_CALL_TYPES) : garde et
+     * astreinte sont de la couverture d'urgence/sur-appel, pas des plages de
+     * consultation ordinaires — un rendez-vous classique n'y est pas
+     * réservable, y compris côté staff, sans passer par force_override.
+     */
+    public function test_an_appointment_during_a_garde_is_rejected_without_override(): void
     {
         $day = now()->addWeek()->startOfDay();
 
@@ -235,14 +241,50 @@ class Step6RhTest extends TestCase
 
         $patient = Patient::factory()->for($this->structureA)->create();
 
-        $this->actingAs($this->secretaireA)->postJson('/api/appointments', [
+        $response = $this->actingAs($this->secretaireA)->postJson('/api/appointments', [
+            'site_id' => $this->siteA->id,
+            'patient_id' => $patient->id,
+            'practitioner_id' => $this->medecinA->id,
+            'starts_at' => $day->clone()->setTime(21, 0)->toDateTimeString(),
+            'duration_minutes' => 30,
+            'reason' => 'Consultation ordinaire pendant la garde',
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertSame(0, \App\Domain\Appointment\Models\Appointment::count());
+    }
+
+    public function test_an_administrator_can_force_an_appointment_during_a_garde_and_it_is_audited(): void
+    {
+        $day = now()->addWeek()->startOfDay();
+
+        WorkSchedule::factory()->for($this->structureA)->create([
+            'user_id' => $this->medecinA->id,
+            'site_id' => $this->siteA->id,
+            'jour_semaine' => null,
+            'date' => $day->toDateString(),
+            'heure_debut' => '20:00:00',
+            'heure_fin' => '23:00:00',
+            'type' => 'garde',
+        ]);
+
+        $patient = Patient::factory()->for($this->structureA)->create();
+
+        $this->actingAs($this->administrateurA)->postJson('/api/appointments', [
             'site_id' => $this->siteA->id,
             'patient_id' => $patient->id,
             'practitioner_id' => $this->medecinA->id,
             'starts_at' => $day->clone()->setTime(21, 0)->toDateTimeString(),
             'duration_minutes' => 30,
             'reason' => 'Urgence pendant la garde',
+            'force_override' => true,
         ])->assertCreated();
+
+        $this->assertTrue(
+            Activity::where('log_name', 'derogation_planning')
+                ->where('causer_id', $this->administrateurA->id)
+                ->exists()
+        );
     }
 
     // --- §2/§5 : congés, portée équipe --------------------------------------

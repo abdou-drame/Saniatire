@@ -7,6 +7,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton, TableSkeleton } from "@/components/ui/loading-state";
+import { roleLabel } from "@/config/role-labels";
 import { useAuth } from "@/hooks/use-auth";
 import {
   useCreateImagingReport,
@@ -228,6 +229,20 @@ function StudyRow({
         <div className="mt-2 space-y-2">
           <p className="whitespace-pre-wrap rounded-md border border-border bg-surface px-3 py-2 text-xs text-text-muted">
             {report.content}
+          </p>
+          <p className="text-xs text-text-subtle">
+            {report.author_label
+              ? `Rédigé par ${report.author_label}${report.author_role ? ` (${roleLabel(report.author_role)})` : ""}`
+              : null}
+            {report.validated_at && (
+              <>
+                {report.author_label ? " · " : ""}
+                Validé le {formatDateTime(report.validated_at)}
+                {report.validator_label
+                  ? ` par ${report.validator_label}${report.validator_role ? ` (${roleLabel(report.validator_role)})` : ""}`
+                  : ""}
+              </>
+            )}
           </p>
 
           {actionError && (

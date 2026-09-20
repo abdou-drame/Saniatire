@@ -41,3 +41,14 @@ export function useCreatePortalAppointment() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["portal-appointments"] }),
   });
 }
+
+export function useCancelPortalAppointment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const { data } = await patientApi.post<{ data: Appointment }>(`/portail-patient/rendez-vous/${id}/annuler`);
+      return data.data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["portal-appointments"] }),
+  });
+}

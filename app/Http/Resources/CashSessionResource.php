@@ -20,6 +20,8 @@ class CashSessionResource extends JsonResource
             'ouverte_le' => $this->ouverte_le,
             'fermee_le' => $this->fermee_le,
             'statut' => $this->statut,
+            'caissier_label' => $this->whenLoaded('caissier', fn () => $this->caissier ? trim("{$this->caissier->first_name} {$this->caissier->last_name}") : null),
+            'site' => $this->whenLoaded('site', fn () => $this->site ? ['id' => $this->site->id, 'name' => $this->site->name] : null),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

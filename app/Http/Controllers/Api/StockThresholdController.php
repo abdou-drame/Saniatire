@@ -27,6 +27,7 @@ class StockThresholdController extends Controller implements HasMiddleware
     {
         $thresholds = StockThreshold::query()
             ->when($request->integer('site_id'), fn ($q, $id) => $q->where('site_id', $id))
+            ->when($request->integer('product_id'), fn ($q, $id) => $q->where('product_id', $id))
             ->paginate();
 
         return StockThresholdResource::collection($thresholds)->response();

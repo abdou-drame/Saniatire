@@ -33,3 +33,15 @@ export function apiErrorMessage(error: unknown): string {
 export function isForbidden(error: unknown): boolean {
   return axios.isAxiosError(error) && error.response?.status === 403;
 }
+
+const UNAVAILABLE_PREFIX = "Praticien indisponible sur ce créneau";
+
+/** Distinguishes the specific "practitioner unavailable" 422 from any other
+ * validation error, so the appointment dialog can offer a dérogation instead
+ * of showing the generic error box. The prefix is a stable server-side
+ * literal (see AppointmentController::presenceCheckResponse), not user input. */
+export function isPractitionerUnavailableError(error: unknown): boolean {
+  if (!axios.isAxiosError(error) || error.response?.status !== 422) return false;
+  const message = (error.response.data as { message?: string } | undefined)?.message;
+  return Boolean(message?.startsWith(UNAVAILABLE_PREFIX));
+}

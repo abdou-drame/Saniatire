@@ -1,7 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronRight } from "lucide-react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { useIcdAncestors } from "@/hooks/use-icd-ancestors";
+import { apiErrorMessage } from "@/lib/api-error";
 import { api } from "@/lib/api";
 import type { ConsultationDiagnosis, IcdCode } from "@/types/api";
 
@@ -13,6 +15,7 @@ export function DiagnosisChip({
   consultationId: number;
 }) {
   const queryClient = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
   const pseudoCode: IcdCode = {
     id: diagnosis.icd_code_id,
     code: diagnosis.code,
@@ -27,7 +30,11 @@ export function DiagnosisChip({
   const confirmMutation = useMutation({
     mutationFn: async () =>
       api.patch(`/consultations/${consultationId}/diagnoses/${diagnosis.id}`, { status: "confirme" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["consultations", consultationId] }),
+    onSuccess: () => {
+      setError(null);
+      queryClient.invalidateQueries({ queryKey: ["consultations"] });
+    },
+    onError: (err) => setError(apiErrorMessage(err)),
   });
 
   return (
@@ -61,6 +68,7 @@ export function DiagnosisChip({
               ))}
             </p>
           )}
+          {error && <p className="mt-1.5 text-xs text-danger">{error}</p>}
         </div>
         {diagnosis.status === "provisoire" && (
           <button

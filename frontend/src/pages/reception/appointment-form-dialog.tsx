@@ -16,7 +16,7 @@ import { useCreateAppointment, useUpdateAppointment } from "@/hooks/use-appointm
 import { usePatientsDirectory } from "@/hooks/use-patients-directory";
 import { usePractitioners } from "@/hooks/use-practitioners";
 import { useSites } from "@/hooks/use-sites";
-import { apiErrorMessage } from "@/lib/api-error";
+import { apiErrorMessage, isPractitionerUnavailableError } from "@/lib/api-error";
 import type { Appointment, Patient } from "@/types/api";
 import { PatientQuickCreateDialog } from "@/pages/reception/patient-quick-create-dialog";
 
@@ -60,12 +60,16 @@ export function AppointmentFormDialog({
   const [reason, setReason] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [overrideOffer, setOverrideOffer] = useState<{ reason: string } | null>(null);
+  const [forceOverride, setForceOverride] = useState(false);
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setSubmitError(null);
     setFieldErrors({});
+    setOverrideOffer(null);
+    setForceOverride(false);
     if (appointment) {
       setPractitionerId(String(appointment.practitioner_id));
       setFormSiteId(String(appointment.site_id));
@@ -113,6 +117,7 @@ export function AppointmentFormDialog({
           starts_at: startsAtIso,
           duration_minutes: durationMinutes,
           reason: reason.trim() || undefined,
+          force_override: forceOverride || undefined,
         });
       } else if (patient) {
         await createAppointment.mutateAsync({
@@ -122,11 +127,16 @@ export function AppointmentFormDialog({
           starts_at: startsAtIso,
           duration_minutes: durationMinutes,
           reason: reason.trim() || undefined,
+          force_override: forceOverride || undefined,
         });
       }
       onOpenChange(false);
     } catch (error) {
-      setSubmitError(apiErrorMessage(error));
+      if (isPractitionerUnavailableError(error)) {
+        setOverrideOffer({ reason: apiErrorMessage(error) });
+      } else {
+        setSubmitError(apiErrorMessage(error));
+      }
     }
   }
 
@@ -148,6 +158,20 @@ export function AppointmentFormDialog({
           <form onSubmit={handleSubmit} className="space-y-4">
             {submitError && (
               <p className="rounded-md border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">{submitError}</p>
+            )}
+
+            {overrideOffer && (
+              <div className="space-y-2 rounded-md border border-warning/30 bg-warning/5 px-3 py-2.5 text-sm text-text">
+                <p>{overrideOffer.reason}</p>
+                <label className="flex items-center gap-2 text-sm font-normal">
+                  <input
+                    type="checkbox"
+                    checked={forceOverride}
+                    onChange={(e) => setForceOverride(e.target.checked)}
+                  />
+                  Forcer le rendez-vous malgré l'indisponibilité (dérogation)
+                </label>
+              </div>
             )}
 
             {!isEditing && !lockedPatient && (

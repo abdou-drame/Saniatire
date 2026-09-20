@@ -15,10 +15,10 @@ class BillingService
      * 'done' when the source model carries that column.
      *
      * If no active tariff is configured for the code yet (an admin/finance
-     * setup gap), the clinical act still completes normally: no
-     * BillableItem is created, but billing_status is still marked so the
-     * act isn't endlessly reprocessed. Clinical workflows are never
-     * blocked by missing billing configuration.
+     * setup gap), a BillableItem is still created, with a zero amount and
+     * statut 'a_tarifer' so the missing pricing is visible in Facturation
+     * instead of the act leaving no billing trace at all. Clinical
+     * workflows are never blocked by missing billing configuration.
      */
     public function recordService(Billable $model): ?BillableItem
     {
@@ -26,24 +26,20 @@ class BillingService
             ->where('actif', true)
             ->first();
 
-        if (! $tariff) {
-            $this->markBillingStatus($model);
-
-            return null;
-        }
-
         $quantite = max(1, $model->billingQuantite());
 
         $item = BillableItem::create([
+            'structure_id' => $model->billingStructureId(),
             'patient_id' => $model->billingPatientId(),
             'billable_type' => get_class($model),
             'billable_id' => $model->getKey(),
             'categorie' => $model->billingCategorie(),
-            'code_prestation' => $tariff->code,
+            'code_prestation' => $tariff->code ?? $model->billingTariffCode(),
             'libelle' => $model->billingLibelle(),
             'quantite' => $quantite,
-            'prix_unitaire' => $tariff->prix_unitaire,
-            'montant_total' => round($tariff->prix_unitaire * $quantite, 2),
+            'prix_unitaire' => $tariff->prix_unitaire ?? 0,
+            'montant_total' => $tariff ? round($tariff->prix_unitaire * $quantite, 2) : 0,
+            'statut' => $tariff ? 'a_facturer' : 'a_tarifer',
         ]);
 
         $this->markBillingStatus($model);

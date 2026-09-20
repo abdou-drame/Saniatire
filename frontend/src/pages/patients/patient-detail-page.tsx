@@ -1,8 +1,9 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, ArrowLeft, Droplet, FlaskConical, Scan, Stethoscope } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, ArrowLeft, Droplet, FlaskConical, LoaderCircle, Pencil, Scan, Send, Stethoscope } from "lucide-react";
 import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ConsultationForm } from "@/components/clinical/consultation-form";
+import { PatientEditDialog } from "@/pages/patients/patient-edit-dialog";
 import { PrescribeImagingOrderDialog } from "@/components/imagerie/prescribe-imaging-order-dialog";
 import { PrescribeLabOrderDialog } from "@/components/laboratoire/prescribe-lab-order-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +31,7 @@ export function PatientDetailPage() {
   const [starting, setStarting] = useState(false);
   const [labDialogOpen, setLabDialogOpen] = useState(false);
   const [imagingDialogOpen, setImagingDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const queueEntry = (location.state as { queueEntry?: QueueEntry } | null)?.queueEntry ?? null;
 
@@ -60,6 +62,14 @@ export function PatientDetailPage() {
       return data.data[0] ?? null;
     },
     enabled: Boolean(user) && hasRole("medecin") && Number.isFinite(patientId),
+  });
+
+  const sendActivation = useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post<{ message: string }>(`/patients/${patientId}/portal/send-activation`);
+      return data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["patients", patientId] }),
   });
 
   if (!Number.isFinite(patientId)) {
@@ -116,8 +126,51 @@ export function PatientDetailPage() {
                   {allergy.allergen}
                 </Badge>
               ))}
+              {hasPermission("patients.update") && (
+                <Button size="sm" variant="secondary" onClick={() => setEditDialogOpen(true)}>
+                  <Pencil size={14} />
+                  Modifier
+                </Button>
+              )}
             </div>
           </div>
+        </Card>
+      )}
+
+      {patientQuery.data && (
+        <PatientEditDialog open={editDialogOpen} onOpenChange={setEditDialogOpen} patient={patientQuery.data} />
+      )}
+
+      {patientQuery.data && hasPermission("patients.update") && (
+        <Card className="p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium uppercase tracking-wide text-text-subtle">Portail patient</span>
+              <Badge status={patientQuery.data.portal_activated_at ? "success" : "neutral"} dot={false}>
+                {patientQuery.data.portal_activated_at ? "Activé" : "Non activé"}
+              </Badge>
+            </div>
+            {!patientQuery.data.portal_activated_at && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => sendActivation.mutate()}
+                disabled={sendActivation.isPending}
+              >
+                {sendActivation.isPending ? (
+                  <LoaderCircle size={14} className="animate-spin" />
+                ) : (
+                  <Send size={14} />
+                )}
+                {sendActivation.isSuccess ? "Lien envoyé" : "Envoyer le lien d'activation"}
+              </Button>
+            )}
+          </div>
+          {sendActivation.isError && (
+            <p className="mt-2 rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
+              {apiErrorMessage(sendActivation.error)}
+            </p>
+          )}
         </Card>
       )}
 
@@ -186,7 +239,7 @@ export function PatientDetailPage() {
             <ConsultationForm
               patientId={patientId}
               practitionerId={user!.id}
-              siteId={queueEntry?.site_id ?? user!.sites[0]?.id ?? null}
+              siteId={openConsultationQuery.data.site_id}
               queueEntryId={queueEntry?.status === "en_consultation" ? null : (queueEntry?.id ?? null)}
               existingConsultation={openConsultationQuery.data}
             />
@@ -194,7 +247,7 @@ export function PatientDetailPage() {
             <ConsultationForm
               patientId={patientId}
               practitionerId={user!.id}
-              siteId={queueEntry?.site_id ?? user!.sites[0]?.id ?? null}
+              siteId={queueEntry?.site_id ?? null}
               queueEntryId={queueEntry?.id ?? null}
             />
           ) : (
@@ -217,7 +270,7 @@ export function PatientDetailPage() {
             open={labDialogOpen}
             onOpenChange={setLabDialogOpen}
             patientId={patientId}
-            siteId={queueEntry?.site_id ?? user!.sites[0]?.id ?? null}
+            fixedSiteId={openConsultationQuery.data?.site_id ?? queueEntry?.site_id ?? undefined}
             practitionerId={user!.id}
             consultationId={null}
             onCreated={() => queryClient.invalidateQueries({ queryKey: ["patients", patientId, "timeline"] })}
@@ -226,7 +279,7 @@ export function PatientDetailPage() {
             open={imagingDialogOpen}
             onOpenChange={setImagingDialogOpen}
             patientId={patientId}
-            siteId={queueEntry?.site_id ?? user!.sites[0]?.id ?? null}
+            fixedSiteId={openConsultationQuery.data?.site_id ?? queueEntry?.site_id ?? undefined}
             practitionerId={user!.id}
             consultationId={null}
             onCreated={() => queryClient.invalidateQueries({ queryKey: ["patients", patientId, "timeline"] })}

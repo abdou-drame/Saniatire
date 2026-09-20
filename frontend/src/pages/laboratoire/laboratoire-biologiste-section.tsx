@@ -7,6 +7,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton, TableSkeleton } from "@/components/ui/loading-state";
+import { roleLabel } from "@/config/role-labels";
 import { useAuth } from "@/hooks/use-auth";
 import { useLabOrder, useLabOrders, useTransmitLabResult, useValidateLabResultBiologique } from "@/hooks/use-lab-orders";
 import { apiErrorMessage } from "@/lib/api-error";
@@ -187,6 +188,25 @@ function BiologisteResultRow({ item, canValidate }: { item: LabOrderItem; canVal
       {result.technical_validated_at && (
         <p className="mt-1 text-xs text-text-subtle">
           Validé techniquement le {formatDateTime(result.technical_validated_at)}
+          {result.technical_validator_label && (
+            <>
+              {" "}
+              par {result.technical_validator_label}
+              {result.technical_validator_role ? ` (${roleLabel(result.technical_validator_role)})` : ""}
+            </>
+          )}
+        </p>
+      )}
+      {result.biological_validated_at && (
+        <p className="mt-1 text-xs text-text-subtle">
+          Validé biologiquement le {formatDateTime(result.biological_validated_at)}
+          {result.biological_validator_label && (
+            <>
+              {" "}
+              par {result.biological_validator_label}
+              {result.biological_validator_role ? ` (${roleLabel(result.biological_validator_role)})` : ""}
+            </>
+          )}
         </p>
       )}
 

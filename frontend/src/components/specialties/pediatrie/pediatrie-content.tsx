@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/error-state";
 import { TableSkeleton } from "@/components/ui/loading-state";
-import { useAuth } from "@/hooks/use-auth";
+import { SiteSelectField } from "@/components/clinical/site-select-field";
 import { useOpenConsultation } from "@/hooks/specialties/use-open-consultation";
 import {
   useAddPediatricDevelopmentObservation,
@@ -15,6 +15,7 @@ import {
   useCreatePediatricRecord,
   usePediatricRecord,
 } from "@/hooks/specialties/use-pediatrie";
+import { useSiteSelection } from "@/hooks/use-site-selection";
 import { useSpecialtyAddForm } from "@/hooks/specialties/use-specialty-add-form";
 import { apiErrorMessage } from "@/lib/api-error";
 import { formatDate } from "@/lib/datetime";
@@ -32,7 +33,7 @@ import type {
 } from "@/types/specialty";
 
 export function PediatrieContent({ patientId }: { patientId: number }) {
-  const { user } = useAuth();
+  const siteSelection = useSiteSelection();
   const recordQuery = usePediatricRecord(patientId);
   const openConsultationQuery = useOpenConsultation(patientId);
   const createMutation = useCreatePediatricRecord(patientId);
@@ -43,7 +44,8 @@ export function PediatrieContent({ patientId }: { patientId: number }) {
   }
 
   if (!recordQuery.data) {
-    const siteId = user?.sites[0]?.id ?? null;
+    const siteId = siteSelection.siteId;
+    const showSiteSelector = siteSelection.needsManualSelection;
 
     function handleCreate() {
       if (!siteId) return;
@@ -63,10 +65,19 @@ export function PediatrieContent({ patientId }: { patientId: number }) {
           <p className="text-sm text-text-muted">
             Ce dossier regroupe le suivi de croissance, la couverture vaccinale et les observations de développement.
           </p>
-          {!siteId && (
-            <p className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
-              Aucun site n'est associé à votre compte — impossible de créer le dossier.
-            </p>
+          {showSiteSelector ? (
+            <SiteSelectField
+              siteId={siteSelection.siteId}
+              onChange={siteSelection.setSiteId}
+              options={siteSelection.options}
+              isLoading={siteSelection.isLoading}
+            />
+          ) : (
+            !siteId && (
+              <p className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
+                Aucun site n'est associé à votre compte — impossible de créer le dossier.
+              </p>
+            )
           )}
           <Button onClick={handleCreate} disabled={createMutation.isPending || !siteId}>
             {createMutation.isPending && <LoaderCircle size={16} className="animate-spin" />}

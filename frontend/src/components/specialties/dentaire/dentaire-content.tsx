@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/error-state";
 import { TableSkeleton } from "@/components/ui/loading-state";
-import { useAuth } from "@/hooks/use-auth";
+import { SiteSelectField } from "@/components/clinical/site-select-field";
 import { useOpenConsultation } from "@/hooks/specialties/use-open-consultation";
+import { useSiteSelection } from "@/hooks/use-site-selection";
 import { useSpecialtyAddForm } from "@/hooks/specialties/use-specialty-add-form";
 import {
   useAddProcedure,
@@ -25,7 +26,7 @@ import { buildSpecialtyPayload } from "@/lib/specialty-validation";
 import type { DentalProcedure, DentalTreatmentPlan, DentalTreatmentPlanItem } from "@/types/specialty";
 
 export function DentaireContent({ patientId }: { patientId: number }) {
-  const { user } = useAuth();
+  const siteSelection = useSiteSelection();
   const chartQuery = useDentalChart(patientId);
   const openConsultationQuery = useOpenConsultation(patientId);
   const createMutation = useCreateDentalChart(patientId);
@@ -36,7 +37,8 @@ export function DentaireContent({ patientId }: { patientId: number }) {
   }
 
   if (!chartQuery.data) {
-    const siteId = user?.sites[0]?.id ?? null;
+    const siteId = siteSelection.siteId;
+    const showSiteSelector = siteSelection.needsManualSelection;
     return (
       <Card>
         <CardHeader>
@@ -44,6 +46,14 @@ export function DentaireContent({ patientId }: { patientId: number }) {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-xs text-text-subtle">Aucun dossier dentaire n'existe encore pour ce patient.</p>
+          {showSiteSelector && (
+            <SiteSelectField
+              siteId={siteSelection.siteId}
+              onChange={siteSelection.setSiteId}
+              options={siteSelection.options}
+              isLoading={siteSelection.isLoading}
+            />
+          )}
           <Button
             disabled={createMutation.isPending || !siteId}
             onClick={() =>
@@ -53,7 +63,9 @@ export function DentaireContent({ patientId }: { patientId: number }) {
             {createMutation.isPending && <LoaderCircle size={16} className="animate-spin" />}
             Créer le dossier dentaire
           </Button>
-          {!siteId && <p className="text-xs text-danger">Aucun site n'est associé à votre compte.</p>}
+          {!showSiteSelector && !siteId && (
+            <p className="text-xs text-danger">Aucun site n'est associé à votre compte.</p>
+          )}
         </CardContent>
       </Card>
     );

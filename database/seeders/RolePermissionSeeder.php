@@ -9,9 +9,12 @@ use Spatie\Permission\Models\Role;
 class RolePermissionSeeder extends Seeder
 {
     /**
-     * Modules covered so far.
+     * Modules covered so far. Public: aussi référencé par la migration
+     * `structure_modules` et par le flux de création de structure de
+     * l'administration plateforme (App\Http\Controllers\Api\Platform),
+     * pour garder une seule taxonomie de modules dans tout le projet.
      */
-    private const MODULES = [
+    public const MODULES = [
         'structures', 'sites', 'users', 'patients',
         'appointments', 'queue', 'consultations', 'icd',
         'laboratoire', 'imagerie', 'hospitalisation', 'bloc_operatoire',
@@ -154,6 +157,16 @@ class RolePermissionSeeder extends Seeder
      * voice_dictation.create / .view gate the audio-upload/status
      * structure-only endpoints (no real transcription) — granted to the
      * same roles that record consultations.
+     *
+     * hospitalisation.wards_manage is its own permission, separate from the
+     * grid's hospitalisation.create/.update, because creating/editing a
+     * ward (service) or a bed is structure-infrastructure management —
+     * the same kind of act as creating a site — not a clinical act.
+     * medecin holds hospitalisation.create/.update to admit/discharge
+     * patients into an *existing* bed, but must not be able to create wards
+     * or beds themselves; a single hospitalisation.update would not let one
+     * role admit patients without also being able to reconfigure the
+     * service/bed inventory.
      */
     private const MEDICAL_PERMISSIONS = [
         'patients_medical.view',
@@ -183,6 +196,7 @@ class RolePermissionSeeder extends Seeder
         'ai.anomaly_detection',
         'voice_dictation.create',
         'voice_dictation.view',
+        'hospitalisation.wards_manage',
     ];
 
     /**
@@ -203,7 +217,7 @@ class RolePermissionSeeder extends Seeder
             'consultations.view', 'consultations.export',
             'laboratoire.view', 'laboratoire.export',
             'imagerie.view', 'imagerie.export',
-            'hospitalisation.view', 'hospitalisation.create', 'hospitalisation.update', 'hospitalisation.export',
+            'hospitalisation.view', 'hospitalisation.create', 'hospitalisation.update', 'hospitalisation.export', 'hospitalisation.wards_manage',
             'bloc_operatoire.view', 'bloc_operatoire.export',
             'maternite.view', 'maternite.export',
             'dentaire.view', 'dentaire.export',
@@ -242,6 +256,13 @@ class RolePermissionSeeder extends Seeder
             'patients.view', 'patients.create', 'patients.update', 'patients.validate', 'patients.export',
             'patients_medical.view',
             'users.view',
+            // sites.view : directeur_medical figure dans RECEPTION_ROLES
+            // (App.tsx) et détient déjà achats.view — il ouvre donc à la fois
+            // le dialogue de prise de rendez-vous et celui de commande
+            // d'achat, tous deux avec un sélecteur de site (useSites()) qui
+            // échouait en 403 sans cette permission. Même rationale que
+            // rh/caissier, déjà accordée pour la même raison.
+            'sites.view',
             'appointments.view', 'appointments.create', 'appointments.update', 'appointments.cancel', 'appointments.export',
             'queue.view',
             'consultations.view', 'consultations.validate', 'consultations.export',
@@ -270,7 +291,14 @@ class RolePermissionSeeder extends Seeder
             'fhir.view', 'ai.consultation_summary', 'ai.anomaly_detection',
         ],
         'medecin' => [
-            'patients.view', 'patients.create', 'patients.update', 'patients_medical.view',
+            // sites.view : indispensable au repli manuel de useSiteSelection
+            // (frontend) quand ce médecin n'a pas exactement un seul site
+            // personnel (0 ou 2+) — sans elle, GET /sites renvoie 403 et le
+            // formulaire affiche à tort "Aucun site n'existe" alors qu'un
+            // site existe bel et bien. Même raison que rh/caissier
+            // ci-dessus, étendue à tous les rôles cliniques ci-dessous qui
+            // portent un .create sur un module scindé par site.
+            'patients.view', 'patients.create', 'patients.update', 'patients_medical.view', 'sites.view',
             'appointments.view', 'appointments.create', 'appointments.update', 'appointments.cancel',
             'queue.view', 'queue.update',
             'consultations.view', 'consultations.create', 'consultations.update', 'consultations.validate',
@@ -286,7 +314,7 @@ class RolePermissionSeeder extends Seeder
             'voice_dictation.create', 'voice_dictation.view',
         ],
         'infirmier' => [
-            'patients.view', 'patients.update', 'patients_medical.view',
+            'patients.view', 'patients.update', 'patients_medical.view', 'sites.view',
             'appointments.view',
             'dashboards.medical',
             'queue.view', 'queue.create', 'queue.update',
@@ -308,18 +336,25 @@ class RolePermissionSeeder extends Seeder
             'reclamations.view', 'reclamations.create', 'reclamations.update',
         ],
         'caissier' => [
-            'patients.view', 'appointments.view', 'queue.view',
+            'patients.view', 'appointments.view', 'queue.view', 'sites.view',
             'facturation.view',
             'caisse.view', 'caisse.create', 'caisse.update', 'caisse.encaisser',
         ],
         'comptable' => [
-            'structures.view', 'sites.view',
+            'structures.view', 'sites.view', 'patients.view',
             'facturation.view', 'facturation.create', 'facturation.update', 'facturation.validate', 'facturation.cancel', 'facturation.export', 'facturation.creances',
             'assurance.view', 'assurance.create', 'assurance.update', 'assurance.export',
             'caisse.view',
             'dashboards.financier', 'dashboards.export',
         ],
         'rh' => [
+            // sites.view est une simple permission de lecture du référentiel
+            // sites, indispensable au module RH : un WorkSchedule exige un
+            // site_id (WorkScheduleRequest: 'exists:sites,id') et les fiches
+            // personnel se filtrent par site. Sans elle le rôle rh ne peut
+            // pas créer d'horaire du tout. Même logique que le rôle caissier,
+            // à qui sites.view a été accordé pour la même raison.
+            'sites.view',
             'users.view', 'users.create', 'users.update',
             'rh.view', 'rh.create', 'rh.update', 'rh.delete', 'rh.export',
             'conges.view', 'conges.validate', 'conges.validate_all', 'conges.export',
@@ -361,7 +396,7 @@ class RolePermissionSeeder extends Seeder
             'fhir.view',
         ],
         'technicien_laboratoire' => [
-            'patients.view',
+            'patients.view', 'sites.view',
             'laboratoire.view', 'laboratoire.create', 'laboratoire.validate_technique',
         ],
         'radiologue' => [
@@ -370,11 +405,11 @@ class RolePermissionSeeder extends Seeder
             'fhir.view',
         ],
         'manipulateur_radio' => [
-            'patients.view',
+            'patients.view', 'sites.view',
             'imagerie.view', 'imagerie.create',
         ],
         'chirurgien' => [
-            'patients.view', 'patients_medical.view',
+            'patients.view', 'patients_medical.view', 'sites.view',
             'bloc_operatoire.view', 'bloc_operatoire.create', 'bloc_operatoire.update',
             'bloc_operatoire.cancel', 'bloc_operatoire.validate',
         ],
@@ -383,19 +418,19 @@ class RolePermissionSeeder extends Seeder
             'bloc_operatoire.view', 'bloc_operatoire.validate',
         ],
         'sage_femme' => [
-            'patients.view', 'patients_medical.view',
+            'patients.view', 'patients_medical.view', 'sites.view',
             'maternite.view', 'maternite.create', 'maternite.update',
         ],
         'gynecologue' => [
-            'patients.view', 'patients_medical.view',
+            'patients.view', 'patients_medical.view', 'sites.view',
             'maternite.view', 'maternite.create', 'maternite.update', 'maternite.validate', 'maternite.export',
         ],
         'dentiste' => [
-            'patients.view', 'patients_medical.view',
+            'patients.view', 'patients_medical.view', 'sites.view',
             'dentaire.view', 'dentaire.create', 'dentaire.update', 'dentaire.export',
         ],
         'nephrologue' => [
-            'patients.view', 'patients_medical.view',
+            'patients.view', 'patients_medical.view', 'sites.view',
             'dialyse.view', 'dialyse.create', 'dialyse.update', 'dialyse.export',
         ],
         'infirmier_dialyse' => [
@@ -403,49 +438,49 @@ class RolePermissionSeeder extends Seeder
             'dialyse.view', 'dialyse.record_session',
         ],
         'ophtalmologue' => [
-            'patients.view', 'patients_medical.view',
+            'patients.view', 'patients_medical.view', 'sites.view',
             'ophtalmo.view', 'ophtalmo.create', 'ophtalmo.update', 'ophtalmo.export',
         ],
         'cardiologue' => [
-            'patients.view', 'patients_medical.view',
+            'patients.view', 'patients_medical.view', 'sites.view',
             'cardiologie.view', 'cardiologie.create', 'cardiologie.update', 'cardiologie.export',
         ],
         'kinesitherapeute' => [
-            'patients.view', 'patients_medical.view',
+            'patients.view', 'patients_medical.view', 'sites.view',
             'kinesitherapie.view', 'kinesitherapie.create', 'kinesitherapie.update', 'kinesitherapie.export',
         ],
         'oncologue' => [
-            'patients.view', 'patients_medical.view',
+            'patients.view', 'patients_medical.view', 'sites.view',
             'oncologie.view', 'oncologie.create', 'oncologie.update', 'oncologie.export',
         ],
         // Highly sensitive: unlike every other specialty role, this list
         // is not mirrored by a `direction.pma.*` grant above — only
         // specialiste_pma and directeur_medical can reach this data.
         'specialiste_pma' => [
-            'patients.view', 'patients_medical.view',
+            'patients.view', 'patients_medical.view', 'sites.view',
             'pma.view', 'pma.create', 'pma.update', 'pma.export',
         ],
         // Same reinforced-confidentiality treatment as specialiste_pma:
         // psychiatre and psychologue are the only clinical roles (besides
         // directeur_medical) with any sante_mentale.* permission.
         'psychiatre' => [
-            'patients.view', 'patients_medical.view',
+            'patients.view', 'patients_medical.view', 'sites.view',
             'sante_mentale.view', 'sante_mentale.create', 'sante_mentale.update', 'sante_mentale.export',
         ],
         'psychologue' => [
-            'patients.view', 'patients_medical.view',
+            'patients.view', 'patients_medical.view', 'sites.view',
             'sante_mentale.view', 'sante_mentale.create', 'sante_mentale.update', 'sante_mentale.export',
         ],
         'pediatre' => [
-            'patients.view', 'patients_medical.view',
+            'patients.view', 'patients_medical.view', 'sites.view',
             'pediatrie.view', 'pediatrie.create', 'pediatrie.update', 'pediatrie.export',
         ],
         'medecin_travail' => [
-            'patients.view', 'patients_medical.view',
+            'patients.view', 'patients_medical.view', 'sites.view',
             'medecine_travail.view', 'medecine_travail.create', 'medecine_travail.update', 'medecine_travail.export',
         ],
         'infirmier_domicile' => [
-            'patients.view', 'patients_medical.view',
+            'patients.view', 'patients_medical.view', 'sites.view',
             'soins_domicile.view', 'soins_domicile.create', 'soins_domicile.update',
         ],
         // Étape 9 §3 : rôle dédié à la lecture du journal d'audit
@@ -471,9 +506,24 @@ class RolePermissionSeeder extends Seeder
         foreach (self::ROLE_PERMISSIONS as $roleName => $rolePermissions) {
             $role = Role::firstOrCreate(['name' => $roleName, 'guard_name' => $guard]);
 
-            $role->syncPermissions(
-                $rolePermissions === ['*'] ? Permission::where('guard_name', $guard)->get() : $rolePermissions
-            );
+            $effectivePermissions = $rolePermissions === ['*']
+                ? Permission::where('guard_name', $guard)->get()
+                : $rolePermissions;
+
+            // Administration plateforme : la création de structure est
+            // réservée à PlatformAdmin (guard `platform`, voir
+            // PlatformStructureController::store()) — aucun rôle de
+            // structure, pas même administrateur via son wildcard, ne doit
+            // la conserver. structures.delete n'est volontairement pas
+            // retiré : il reste protégé par authorizeOwnStructure() et
+            // n'a pas été identifié comme une faille.
+            if ($roleName === 'administrateur') {
+                $effectivePermissions = $effectivePermissions instanceof \Illuminate\Support\Collection
+                    ? $effectivePermissions->reject(fn (Permission $permission) => $permission->name === 'structures.create')
+                    : collect($effectivePermissions)->reject(fn (string $name) => $name === 'structures.create');
+            }
+
+            $role->syncPermissions($effectivePermissions);
         }
     }
 }

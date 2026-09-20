@@ -7,13 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/error-state";
 import { TableSkeleton } from "@/components/ui/loading-state";
-import { useAuth } from "@/hooks/use-auth";
+import { SiteSelectField } from "@/components/clinical/site-select-field";
 import { useOpenConsultation } from "@/hooks/specialties/use-open-consultation";
 import {
   useAddHomeCareVisit,
   useCreateHomeCareRecord,
   useHomeCareRecord,
 } from "@/hooks/specialties/use-soins-domicile";
+import { useSiteSelection } from "@/hooks/use-site-selection";
 import { useSpecialtyAddForm } from "@/hooks/specialties/use-specialty-add-form";
 import { apiErrorMessage } from "@/lib/api-error";
 import { formatDateTime } from "@/lib/datetime";
@@ -24,13 +25,14 @@ import type { Patient } from "@/types/api";
 import type { HomeCareVisit } from "@/types/specialty";
 
 export function SoinsDomicileContent({ patientId, patient }: { patientId: number; patient: Patient }) {
-  const { user } = useAuth();
   const recordQuery = useHomeCareRecord(patientId);
   const openConsultationQuery = useOpenConsultation(patientId);
   const createMutation = useCreateHomeCareRecord(patientId);
   const form = useSpecialtyAddForm(HOME_CARE_RECORD_FIELDS);
   const [schedulingOpen, setSchedulingOpen] = useState(false);
-  const siteId = user?.sites[0]?.id ?? null;
+  const siteSelection = useSiteSelection();
+  const siteId = siteSelection.siteId;
+  const showSiteSelector = siteSelection.needsManualSelection;
 
   if (recordQuery.isLoading) return <TableSkeleton rows={4} columns={2} />;
   if (recordQuery.isError) {
@@ -61,6 +63,14 @@ export function SoinsDomicileContent({ patientId, patient }: { patientId: number
           <CardTitle>Créer le dossier de soins à domicile</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {showSiteSelector && (
+            <SiteSelectField
+              siteId={siteSelection.siteId}
+              onChange={siteSelection.setSiteId}
+              options={siteSelection.options}
+              isLoading={siteSelection.isLoading}
+            />
+          )}
           <SpecialtyForm
             columns={2}
             fields={HOME_CARE_RECORD_FIELDS}

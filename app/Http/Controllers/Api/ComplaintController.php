@@ -34,6 +34,7 @@ class ComplaintController extends Controller implements HasMiddleware
         $canManageAll = $request->user()->can('reclamations.manage_all');
 
         $query = Complaint::query()
+            ->with(['gestionnaire', 'resolvedBy', 'closedBy'])
             ->when(! $canManageAll, fn ($q) => $q->where('gestionnaire_id', $request->user()->id))
             ->when($request->filled('statut'), fn ($q) => $q->where('statut', $request->string('statut')));
 
@@ -50,6 +51,7 @@ class ComplaintController extends Controller implements HasMiddleware
         ]);
 
         $data['statut'] = 'ouverte';
+        $data['origin'] = 'staff';
 
         $complaint = Complaint::create($data)->refresh();
 
@@ -60,7 +62,7 @@ class ComplaintController extends Controller implements HasMiddleware
     {
         $this->assertCanManage($request, $complaint);
 
-        return new ComplaintResource($complaint->load('responses'));
+        return new ComplaintResource($complaint->load(['responses.auteur', 'gestionnaire', 'resolvedBy', 'closedBy']));
     }
 
     public function assign(Request $request, Complaint $complaint): ComplaintResource
@@ -82,11 +84,13 @@ class ComplaintController extends Controller implements HasMiddleware
 
         $data = $request->validate([
             'message' => ['required', 'string'],
+            'visible_patient' => ['sometimes', 'boolean'],
         ]);
 
         $response = $complaint->responses()->create([
             'auteur_id' => $request->user()->id,
             'message' => $data['message'],
+            'visible_patient' => $data['visible_patient'] ?? true,
         ]);
 
         return (new ComplaintResponseResource($response))->response()->setStatusCode(201);
@@ -98,7 +102,7 @@ class ComplaintController extends Controller implements HasMiddleware
 
         abort_if($complaint->statut !== 'en_cours', 422, 'Seule une réclamation en cours peut être résolue.');
 
-        $complaint->update(['statut' => 'resolue', 'resolved_at' => now()]);
+        $complaint->update(['statut' => 'resolue', 'resolved_at' => now(), 'resolved_by' => $request->user()->id]);
 
         return new ComplaintResource($complaint);
     }
@@ -109,7 +113,7 @@ class ComplaintController extends Controller implements HasMiddleware
 
         abort_if($complaint->statut !== 'resolue', 422, 'Seule une réclamation résolue peut être clôturée.');
 
-        $complaint->update(['statut' => 'close', 'closed_at' => now()]);
+        $complaint->update(['statut' => 'close', 'closed_at' => now(), 'closed_by' => $request->user()->id]);
 
         return new ComplaintResource($complaint);
     }

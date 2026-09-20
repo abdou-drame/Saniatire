@@ -29,8 +29,13 @@ interface FormState {
   sex: "M" | "F";
   birth_date: string;
   phone: string;
+  email: string;
+  address: string;
+  profession: string;
+  nationality: string;
   emergency_contact_name: string;
   emergency_contact_phone: string;
+  emergency_contact_relationship: string;
 }
 
 const EMPTY_FORM: FormState = {
@@ -39,9 +44,19 @@ const EMPTY_FORM: FormState = {
   sex: "M",
   birth_date: "",
   phone: "",
+  email: "",
+  address: "",
+  profession: "",
+  nationality: "",
   emergency_contact_name: "",
   emergency_contact_phone: "",
+  emergency_contact_relationship: "",
 };
+
+// Same permissiveness as the backend's `email` validation rule — this is a
+// UX shortcut to catch obvious typos before the round trip, not a substitute
+// for the server-side check.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function PatientQuickCreateDialog({ open, onOpenChange, onPatientReady }: PatientQuickCreateDialogProps) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
@@ -68,6 +83,9 @@ export function PatientQuickCreateDialog({ open, onOpenChange, onPatientReady }:
     if (!form.last_name.trim()) errors.last_name = "Le nom est obligatoire.";
     if (!form.birth_date) errors.birth_date = "La date de naissance est obligatoire.";
     else if (new Date(form.birth_date) > new Date()) errors.birth_date = "La date de naissance ne peut pas être future.";
+    if (form.email.trim() && !EMAIL_PATTERN.test(form.email.trim())) {
+      errors.email = "Adresse email invalide.";
+    }
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   }
@@ -84,8 +102,13 @@ export function PatientQuickCreateDialog({ open, onOpenChange, onPatientReady }:
         sex: form.sex,
         birth_date: form.birth_date,
         phone: form.phone.trim() || undefined,
+        email: form.email.trim() || undefined,
+        address: form.address.trim() || undefined,
+        profession: form.profession.trim() || undefined,
+        nationality: form.nationality.trim() || undefined,
         emergency_contact_name: form.emergency_contact_name.trim() || undefined,
         emergency_contact_phone: form.emergency_contact_phone.trim() || undefined,
+        emergency_contact_relationship: form.emergency_contact_relationship.trim() || undefined,
       });
       if (created.possible_duplicates.length === 0) {
         onPatientReady(created.data);
@@ -197,16 +220,57 @@ export function PatientQuickCreateDialog({ open, onOpenChange, onPatientReady }:
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="pqc-phone">Téléphone</Label>
+                <Input
+                  id="pqc-phone"
+                  value={form.phone}
+                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="pqc-email">Email</Label>
+                <Input
+                  id="pqc-email"
+                  type="text"
+                  inputMode="email"
+                  value={form.email}
+                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                />
+                <FieldError>{fieldErrors.email}</FieldError>
+              </div>
+            </div>
+
             <div>
-              <Label htmlFor="pqc-phone">Téléphone</Label>
+              <Label htmlFor="pqc-address">Adresse</Label>
               <Input
-                id="pqc-phone"
-                value={form.phone}
-                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                id="pqc-address"
+                value={form.address}
+                onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="pqc-profession">Profession</Label>
+                <Input
+                  id="pqc-profession"
+                  value={form.profession}
+                  onChange={(e) => setForm((f) => ({ ...f, profession: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="pqc-nationality">Nationalité</Label>
+                <Input
+                  id="pqc-nationality"
+                  value={form.nationality}
+                  onChange={(e) => setForm((f) => ({ ...f, nationality: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
               <div>
                 <Label htmlFor="pqc-ec-name">Contact d'urgence — nom</Label>
                 <Input
@@ -221,6 +285,14 @@ export function PatientQuickCreateDialog({ open, onOpenChange, onPatientReady }:
                   id="pqc-ec-phone"
                   value={form.emergency_contact_phone}
                   onChange={(e) => setForm((f) => ({ ...f, emergency_contact_phone: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="pqc-ec-relationship">Contact d'urgence — lien</Label>
+                <Input
+                  id="pqc-ec-relationship"
+                  value={form.emergency_contact_relationship}
+                  onChange={(e) => setForm((f) => ({ ...f, emergency_contact_relationship: e.target.value }))}
                 />
               </div>
             </div>

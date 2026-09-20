@@ -15,9 +15,11 @@ use Illuminate\Routing\Controllers\Middleware;
  * Unlike Site/User/Patient, Structure has no structure_id column — it IS
  * the tenant boundary, so it can't use the BelongsToTenant/TenantScope
  * mechanism. Instead, every action here explicitly restricts to the
- * caller's own structure (404 on mismatch, same as a scoped-out record),
- * except store() which onboards a brand-new structure and therefore has
- * no existing tenant to check against.
+ * caller's own structure (404 on mismatch, same as a scoped-out record).
+ * store() n'existe plus ici — création de structure réservée à
+ * PlatformStructureController::store() (guard `platform`), voir
+ * routes/api.php : aucun rôle de structure ne doit pouvoir créer une
+ * structure (faille structures.create fermée).
  */
 class StructureController extends Controller implements HasMiddleware
 {
@@ -25,9 +27,9 @@ class StructureController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('permission:structures.view', only: ['index', 'show']),
-            new Middleware('permission:structures.create', only: ['store']),
             new Middleware('permission:structures.update', only: ['update']),
             new Middleware('permission:structures.delete', only: ['destroy']),
+            new Middleware('permission:referrals.create', only: ['directory']),
         ];
     }
 
@@ -36,11 +38,34 @@ class StructureController extends Controller implements HasMiddleware
         return new StructureResource($request->user()->structure);
     }
 
-    public function store(StructureRequest $request): JsonResponse
+    /**
+     * Étape 15 : liste minimale des structures pouvant servir de destination
+     * à un référencement inter-structures (routes/api.php, bloc patient-referrals).
+     * Gardé sur referrals.create — même permission que l'envoi lui-même — pas
+     * sur structures.view, qui gouverne un tout autre écran (gestion de la
+     * structure). Actives uniquement, structure de l'appelant exclue (se
+     * référencer soi-même n'a pas de sens) ; le backend ne rejette pas pour
+     * autant un envoi vers sa propre structure si le frontend passait outre —
+     * ce filtre est une simple commodité de picker, pas une règle serveur.
+     */
+    public function directory(Request $request): JsonResponse
     {
-        $structure = Structure::create($request->validated());
+        $structures = Structure::query()
+            ->where('is_active', true)
+            ->where('id', '!=', $request->user()->structure_id)
+            ->orderBy('legal_name')
+            ->get(['id', 'code', 'legal_name', 'trade_name', 'city', 'is_active']);
 
-        return (new StructureResource($structure))->response()->setStatusCode(201);
+        return response()->json([
+            'data' => $structures->map(fn (Structure $s) => [
+                'id' => $s->id,
+                'code' => $s->code,
+                'legal_name' => $s->legal_name,
+                'trade_name' => $s->trade_name,
+                'city' => $s->city,
+                'is_active' => $s->is_active,
+            ]),
+        ]);
     }
 
     public function show(Request $request, Structure $structure): StructureResource

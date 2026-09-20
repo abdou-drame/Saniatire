@@ -26,10 +26,16 @@ class PaymentController extends Controller implements HasMiddleware
 
     public function index(Request $request): JsonResponse
     {
-        $query = Payment::query()->orderByDesc('paid_at');
+        $query = Payment::query()
+            ->with(['caissier:id,first_name,last_name', 'invoice:id,numero,patient_id'])
+            ->orderByDesc('paid_at');
 
         if ($request->filled('invoice_id')) {
             $query->where('invoice_id', $request->integer('invoice_id'));
+        }
+
+        if ($request->filled('cash_session_id')) {
+            $query->where('cash_session_id', $request->integer('cash_session_id'));
         }
 
         return PaymentResource::collection($query->paginate())->response();

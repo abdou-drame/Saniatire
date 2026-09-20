@@ -1,6 +1,7 @@
 <?php
 
 use App\Domain\Patient\Models\Patient;
+use App\Domain\Platform\Models\PlatformAdmin;
 use App\Domain\Prescripteur\Models\ExternalPrescriber;
 use App\Domain\User\Models\User;
 
@@ -59,6 +60,14 @@ return [
             'driver' => 'sanctum',
             'provider' => 'external_prescribers',
         ],
+
+        // Administration plateforme : quatrième espace d'authentification,
+        // distinct des trois précédents, pour l'administrateur qui
+        // n'appartient à aucune structure (voir App\Domain\Platform\Models\PlatformAdmin).
+        'platform' => [
+            'driver' => 'sanctum',
+            'provider' => 'platform_admins',
+        ],
     ],
 
     /*
@@ -92,6 +101,11 @@ return [
         'external_prescribers' => [
             'driver' => 'eloquent',
             'model' => ExternalPrescriber::class,
+        ],
+
+        'platform_admins' => [
+            'driver' => 'eloquent',
+            'model' => PlatformAdmin::class,
         ],
 
         // 'users' => [

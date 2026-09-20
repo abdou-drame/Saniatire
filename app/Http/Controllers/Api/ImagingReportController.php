@@ -43,6 +43,7 @@ class ImagingReportController extends Controller implements HasMiddleware
         $imagingReport->update([
             'status' => 'valide',
             'validated_at' => now(),
+            'validated_by' => request()->user()->id,
         ]);
 
         $imagingReport->study->update(['status' => 'valide']);

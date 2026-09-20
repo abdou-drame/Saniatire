@@ -15,6 +15,7 @@ import {
   useValidateChecklistStep,
 } from "@/hooks/use-surgical-procedures";
 import { apiErrorMessage } from "@/lib/api-error";
+import { roleLabel } from "@/config/role-labels";
 import { formatDateTime } from "@/lib/datetime";
 import {
   CHECKLIST_STEP_ITEMS,
@@ -125,6 +126,8 @@ export function SurgicalProcedureDetail({ procedureId, onClose }: { procedureId:
                 key={step}
                 step={step}
                 validatedAt={checklist?.validated_at ?? null}
+                validatorLabel={checklist?.validator_label ?? null}
+                validatorRole={checklist?.validator_role ?? null}
                 canValidate={canValidate && procedure.status === "en_cours"}
                 onValidate={(items) =>
                   validateStep.mutateAsync({ surgicalProcedureId: procedureId, step, items })
@@ -187,11 +190,15 @@ export function SurgicalProcedureDetail({ procedureId, onClose }: { procedureId:
 function ChecklistStepRow({
   step,
   validatedAt,
+  validatorLabel,
+  validatorRole,
   canValidate,
   onValidate,
 }: {
   step: SurgicalChecklistStep;
   validatedAt: string | null;
+  validatorLabel: string | null;
+  validatorRole: string | null;
   canValidate: boolean;
   onValidate: (items: string[]) => Promise<unknown>;
 }) {
@@ -231,7 +238,16 @@ function ChecklistStepRow({
         ))}
       </ul>
       {isValidated && validatedAt && (
-        <p className="mt-2 text-xs text-text-subtle">Validée le {formatDateTime(validatedAt)}</p>
+        <p className="mt-2 text-xs text-text-subtle">
+          Validée le {formatDateTime(validatedAt)}
+          {validatorLabel && (
+            <>
+              {" "}
+              par {validatorLabel}
+              {validatorRole ? ` (${roleLabel(validatorRole)})` : ""}
+            </>
+          )}
+        </p>
       )}
       {error && (
         <p className="mt-2 rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</p>

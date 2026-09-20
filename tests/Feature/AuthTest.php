@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Domain\Structure\Models\Site;
 use App\Domain\Structure\Models\Structure;
 use App\Domain\User\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -24,6 +25,30 @@ class AuthTest extends TestCase
         ]);
 
         $response->assertOk()->assertJsonStructure(['token', 'user']);
+    }
+
+    /**
+     * Régression : AuthController::login() chargeait `roles`/`structure` mais
+     * omettait `sites` de l'eager-load, donc la clé `sites` était absente du
+     * JSON (whenLoaded()) — le frontend (useSiteSelection) lisait alors
+     * `user.sites` comme un tableau vide et affichait "Aucun site n'existe"
+     * même quand le compte était bien rattaché à un site.
+     */
+    public function test_login_response_includes_the_users_sites(): void
+    {
+        $structure = Structure::factory()->create();
+        $site = Site::factory()->for($structure)->create();
+        $user = User::factory()->for($structure)->create([
+            'password' => Hash::make('correct-password'),
+        ]);
+        $user->sites()->attach($site->id);
+
+        $response = $this->postJson('/api/auth/login', [
+            'email' => $user->email,
+            'password' => 'correct-password',
+        ]);
+
+        $response->assertOk()->assertJsonPath('user.sites.0.id', $site->id);
     }
 
     public function test_login_fails_with_invalid_credentials(): void

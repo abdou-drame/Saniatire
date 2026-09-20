@@ -17,7 +17,15 @@ class ComplaintResponse extends Model
         'complaint_id',
         'auteur_id',
         'message',
+        'visible_patient',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'visible_patient' => 'boolean',
+        ];
+    }
 
     public function complaint(): BelongsTo
     {

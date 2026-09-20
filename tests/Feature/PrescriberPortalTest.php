@@ -94,10 +94,13 @@ class PrescriberPortalTest extends TestCase
             'status' => 'transmis',
         ]);
 
-        $response = $this->actingAs($prescriberA, 'prescriber')->getJson('/api/portail-prescripteur/resultats');
+        // /resultats a été remplacé par /demandes-labo (toutes statuts, voir
+        // PrescriberPortalController::demandesLabo) : même isolation par
+        // demandeur, mais le détail clinique reste conditionné à `transmis`.
+        $response = $this->actingAs($prescriberA, 'prescriber')->getJson('/api/portail-prescripteur/demandes-labo');
 
         $response->assertOk();
-        $this->assertCount(1, $response->json('demandes_laboratoire'));
+        $this->assertCount(1, $response->json('data'));
     }
 
     public function test_a_prescriber_token_is_rejected_on_staff_routes(): void

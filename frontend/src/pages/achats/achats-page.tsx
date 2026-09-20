@@ -23,6 +23,7 @@ import {
 } from "@/hooks/use-purchase-orders";
 import { apiErrorMessage } from "@/lib/api-error";
 import { formatDate } from "@/lib/datetime";
+import { ApprovalRulesSection } from "@/pages/achats/approval-rules-section";
 import { FournisseursSection } from "@/pages/achats/fournisseurs-section";
 import { ORDER_STATUS_BADGE, ORDER_STATUS_LABEL, REQUEST_STATUS_BADGE, REQUEST_STATUS_LABEL } from "@/pages/achats/achats-status";
 import type { PurchaseOrder, PurchaseOrderApprovalStatut, PurchaseOrderItem, PurchaseRequest } from "@/types/api";
@@ -215,6 +216,8 @@ export function AchatsPage() {
       </Card>
 
       <FournisseursSection />
+
+      <ApprovalRulesSection />
 
       <CreatePurchaseRequestDialog open={createRequestOpen} onOpenChange={setCreateRequestOpen} />
       <CreatePurchaseOrderDialog open={createOrderOpen} onOpenChange={setCreateOrderOpen} />

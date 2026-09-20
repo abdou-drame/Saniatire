@@ -15,6 +15,14 @@ interface Billable
     public function billingPatientId(): int;
 
     /**
+     * BelongsToTenant only auto-fills structure_id from the authenticated
+     * user, which is absent outside an HTTP request (a console command, a
+     * queued job) — recordService() needs it explicitly so it works in
+     * both contexts.
+     */
+    public function billingStructureId(): int;
+
+    /**
      * Shared vocabulary with insurance_convention_coverage_rules.categorie
      * (e.g. 'consultation', 'laboratoire', 'imagerie', 'hospitalisation',
      * 'chirurgie', 'dialyse', 'kinesitherapie').

@@ -49,7 +49,7 @@ class SurgicalProcedureController extends Controller implements HasMiddleware
     public function show(SurgicalProcedure $surgicalProcedure): SurgicalProcedureResource
     {
         return new SurgicalProcedureResource($surgicalProcedure->load([
-            'checklists',
+            'checklists.validator',
             'patient:id,first_name,last_name,patient_number',
             'surgeon',
             'anesthesiologist',

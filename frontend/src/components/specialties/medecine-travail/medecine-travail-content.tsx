@@ -1,12 +1,13 @@
-import { useAuth } from "@/hooks/use-auth";
 import { useOpenConsultation } from "@/hooks/specialties/use-open-consultation";
 import {
   useCreateOccupationalHealthRecord,
   useOccupationalHealthRecords,
 } from "@/hooks/specialties/use-medecine-travail";
+import { useSiteSelection } from "@/hooks/use-site-selection";
 import { useSpecialtyAddForm } from "@/hooks/specialties/use-specialty-add-form";
 import { SpecialtyDiagnosisCard } from "@/components/clinical/specialty-diagnosis-card";
 import { SpecialtyHistorySection } from "@/components/clinical/specialty-history-section";
+import { SiteSelectField } from "@/components/clinical/site-select-field";
 import { Badge } from "@/components/ui/badge";
 import { ErrorState } from "@/components/ui/error-state";
 import { TableSkeleton } from "@/components/ui/loading-state";
@@ -30,7 +31,7 @@ const VISIT_TYPE_LABELS: Record<string, string> = {
 };
 
 export function MedecineTravailContent({ patientId }: { patientId: number }) {
-  const { user } = useAuth();
+  const siteSelection = useSiteSelection();
   const recordsQuery = useOccupationalHealthRecords(patientId);
   const openConsultationQuery = useOpenConsultation(patientId);
   const createMutation = useCreateOccupationalHealthRecord(patientId);
@@ -41,7 +42,8 @@ export function MedecineTravailContent({ patientId }: { patientId: number }) {
     return <ErrorState message={apiErrorMessage(recordsQuery.error)} onRetry={() => recordsQuery.refetch()} />;
   }
 
-  const siteId = user?.sites[0]?.id ?? null;
+  const siteId = siteSelection.siteId;
+  const showSiteSelector = siteSelection.needsManualSelection;
 
   function handleSubmit() {
     form.setGlobalError(null);
@@ -73,6 +75,15 @@ export function MedecineTravailContent({ patientId }: { patientId: number }) {
   return (
     <div className="space-y-4">
       <SpecialtyDiagnosisCard consultationId={openConsultationQuery.data?.id ?? null} />
+
+      {showSiteSelector && (
+        <SiteSelectField
+          siteId={siteSelection.siteId}
+          onChange={siteSelection.setSiteId}
+          options={siteSelection.options}
+          isLoading={siteSelection.isLoading}
+        />
+      )}
 
       <SpecialtyHistorySection
         title="Visites de médecine du travail"

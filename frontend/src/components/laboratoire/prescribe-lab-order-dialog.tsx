@@ -10,9 +10,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/loading-state";
+import { SiteSelectField } from "@/components/clinical/site-select-field";
 import { useCreateLabOrder } from "@/hooks/use-lab-orders";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useLoincCodeSearch } from "@/hooks/use-loinc-codes";
+import { useSiteSelection } from "@/hooks/use-site-selection";
 import { apiErrorMessage } from "@/lib/api-error";
 import type { PrescriberLoincCode } from "@/types/api";
 
@@ -20,7 +22,14 @@ export interface PrescribeLabOrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   patientId: number;
-  siteId: number | null;
+  /**
+   * Site fixé par l'appelant (ex. le site de la consultation en cours) — le
+   * sélecteur de site n'est alors pas affiché. Omettre cette prop pour que
+   * le dialogue résolve lui-même le site : automatiquement si l'utilisateur
+   * n'est rattaché qu'à un seul site, sinon via un sélecteur explicite (cas
+   * de l'administrateur, qui supervise plusieurs sites par conception).
+   */
+  fixedSiteId?: number | null;
   practitionerId: number;
   consultationId?: number | null;
   onCreated?: () => void;
@@ -35,7 +44,7 @@ export function PrescribeLabOrderDialog({
   open,
   onOpenChange,
   patientId,
-  siteId,
+  fixedSiteId,
   practitionerId,
   consultationId = null,
   onCreated,
@@ -49,6 +58,9 @@ export function PrescribeLabOrderDialog({
   const debouncedSearch = useDebouncedValue(search, 300);
   const loincQuery = useLoincCodeSearch(debouncedSearch);
   const createLabOrder = useCreateLabOrder();
+  const siteSelection = useSiteSelection();
+  const siteId = fixedSiteId !== undefined ? fixedSiteId : siteSelection.siteId;
+  const showSiteSelector = fixedSiteId === undefined && siteSelection.needsManualSelection;
 
   useEffect(() => {
     if (!open) {
@@ -109,10 +121,19 @@ export function PrescribeLabOrderDialog({
           </div>
         ) : (
           <div className="space-y-4">
-            {!siteId && (
-              <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
-                Aucun site associé à cette consultation — impossible de prescrire.
-              </p>
+            {showSiteSelector ? (
+              <SiteSelectField
+                siteId={siteSelection.siteId}
+                onChange={siteSelection.setSiteId}
+                options={siteSelection.options}
+                isLoading={siteSelection.isLoading}
+              />
+            ) : (
+              !siteId && (
+                <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+                  Aucun site associé à cette consultation — impossible de prescrire.
+                </p>
+              )
             )}
 
             <div className="space-y-1.5">

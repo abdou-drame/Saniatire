@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/error-state";
 import { TableSkeleton } from "@/components/ui/loading-state";
-import { useAuth } from "@/hooks/use-auth";
+import { SiteSelectField } from "@/components/clinical/site-select-field";
 import { useOpenConsultation } from "@/hooks/specialties/use-open-consultation";
+import { useSiteSelection } from "@/hooks/use-site-selection";
 import { useSpecialtyAddForm } from "@/hooks/specialties/use-specialty-add-form";
 import {
   useAddNewborn,
@@ -37,7 +38,6 @@ import type { SpecialtyFieldValues } from "@/types/specialty-config";
 import type { MaternityDelivery, MaternityNewborn, MaternityPartogram, MaternityPostpartumVisit, MaternityPrenatalVisit } from "@/types/specialty";
 
 export function MaterniteContent({ patientId }: { patientId: number }) {
-  const { user } = useAuth();
   const recordQuery = useMaternityRecord(patientId);
 
   if (recordQuery.isLoading) return <TableSkeleton rows={4} columns={2} />;
@@ -46,7 +46,7 @@ export function MaterniteContent({ patientId }: { patientId: number }) {
   }
 
   if (!recordQuery.data) {
-    return <CreateMaternityRecord patientId={patientId} siteId={user?.sites[0]?.id ?? null} />;
+    return <CreateMaternityRecord patientId={patientId} />;
   }
 
   const record = recordQuery.data;
@@ -94,12 +94,15 @@ export function MaterniteContent({ patientId }: { patientId: number }) {
   );
 }
 
-function CreateMaternityRecord({ patientId, siteId }: { patientId: number; siteId: number | null }) {
+function CreateMaternityRecord({ patientId }: { patientId: number }) {
   const [values, setValues] = useState<SpecialtyFieldValues>(() => emptySpecialtyValues(MATERNITY_RECORD_FIELDS));
   const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
   const [globalError, setGlobalError] = useState<string | null>(null);
   const openConsultationQuery = useOpenConsultation(patientId);
   const createMutation = useCreateMaternityRecord(patientId);
+  const siteSelection = useSiteSelection();
+  const siteId = siteSelection.siteId;
+  const showSiteSelector = siteSelection.needsManualSelection;
 
   function handleSubmit() {
     setGlobalError(null);
@@ -126,6 +129,14 @@ function CreateMaternityRecord({ patientId, siteId }: { patientId: number; siteI
         <CardTitle>Démarrer un suivi de grossesse</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {showSiteSelector && (
+          <SiteSelectField
+            siteId={siteSelection.siteId}
+            onChange={siteSelection.setSiteId}
+            options={siteSelection.options}
+            isLoading={siteSelection.isLoading}
+          />
+        )}
         <SpecialtyForm
           columns={2}
           fields={MATERNITY_RECORD_FIELDS}

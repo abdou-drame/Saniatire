@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureNoPendingPasswordChange;
 use App\Http\Middleware\EnsureTenantContext;
 use App\Http\Middleware\EnsureTwoFactorSetupComplete;
 use Illuminate\Foundation\Application;
@@ -23,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'tenant' => EnsureTenantContext::class,
             'two_factor' => EnsureTwoFactorSetupComplete::class,
+            'password_change' => EnsureNoPendingPasswordChange::class,
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
@@ -39,8 +41,14 @@ return Application::configure(basePath: dirname(__DIR__))
         // UnauthorizedException extends Symfony's HttpException, which is in
         // Laravel's Handler::$internalDontReport — report() short-circuits before
         // any reportable() callback runs. render() has no such gate, so a
-        // renderable() callback is the reliable hook. Returning null lets Laravel
-        // fall through to its normal 403 rendering; this callback only logs.
+        // renderable() callback is the reliable hook.
+        //
+        // It also replaces Spatie's raw, untranslated "User does not have the
+        // right permissions." with a clean French message: frontend/api-error.ts
+        // deliberately preserves any server-provided 403 message verbatim (some
+        // controllers send a precise, intentional one), so without this the raw
+        // English string was reaching end users as-is, app-wide, on every
+        // permission/role-gated route.
         $exceptions->renderable(function (\Spatie\Permission\Exceptions\UnauthorizedException $e, $request) {
             $permissions = $e->getRequiredPermissions();
 
@@ -56,6 +64,8 @@ return Application::configure(basePath: dirname(__DIR__))
                     ->log("Tentative d'accès refusée à une donnée sensible (PMA/santé mentale)");
             }
 
-            return null;
+            return response()->json([
+                'message' => "Vous n'avez pas les autorisations nécessaires pour effectuer cette action.",
+            ], 403);
         });
     })->create();

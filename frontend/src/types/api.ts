@@ -18,8 +18,17 @@ export interface Paginated<T> {
 
 export interface Site {
   id: number;
+  structure_id?: number;
   name: string;
   code?: string;
+  address?: string | null;
+  city?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  opening_hours?: Record<string, unknown> | null;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface AuthenticatedUser {
@@ -30,11 +39,38 @@ export interface AuthenticatedUser {
   email: string;
   phone?: string | null;
   is_active: boolean;
+  must_change_password: boolean;
   two_factor_enabled: boolean;
   two_factor_required: boolean;
   roles: string[];
   permissions: string[];
   sites: Site[];
+  structure_name?: string | null;
+}
+
+/**
+ * Forme complète de UserResource — utilisée par l'écran de gestion des
+ * comptes (liste/édition), distincte de AuthenticatedUser (le compte
+ * courant) et de StaffUser (répertoire minimal id/nom/rôles utilisé pour
+ * résoudre des références ailleurs dans l'app).
+ */
+export interface UserAccount {
+  id: number;
+  structure_id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string | null;
+  photo_path: string | null;
+  is_active: boolean;
+  last_login_at: string | null;
+  two_factor_enabled: boolean;
+  two_factor_required: boolean;
+  roles: string[];
+  permissions: string[];
+  sites: Site[];
+  created_at: string;
+  updated_at: string;
 }
 
 export type QueuePriority = "normale" | "urgente" | "tres_urgente";
@@ -93,6 +129,7 @@ export interface Patient {
   emergency_contact_relationship: string | null;
   medical_info?: PatientMedicalInfo | null;
   allergies?: PatientAllergy[];
+  portal_activated_at: string | null;
 }
 
 export type DiagnosisType = "principal" | "secondaire";
@@ -206,7 +243,9 @@ export interface BalanceAgeeLigne {
   invoice_id: number;
   numero: string;
   patient_id: number;
+  patient_label: string | null;
   insurance_convention_id: number | null;
+  insurance_provider_label: string | null;
   date_emission: string;
   anciennete_jours: number;
   solde: number;
@@ -330,15 +369,24 @@ export interface InvoiceItem {
   montant_patient: number;
 }
 
+export type ModePaiement = "especes" | "carte" | "virement" | "mobile_money";
+export type StatutMobileMoney = "pending" | "confirmed" | "failed";
+
 export interface Payment {
   id: number;
+  structure_id: number;
+  site_id: number;
   invoice_id: number;
-  mode_paiement: string;
+  cash_session_id: number | null;
+  caissier_id: number;
+  caissier_label: string | null;
+  mode_paiement: ModePaiement;
   reference_transaction: string | null;
-  statut_mobile_money: string | null;
+  statut_mobile_money: StatutMobileMoney | null;
   montant: number;
   numero_recu: string | null;
   paid_at: string | null;
+  invoice?: { id: number; numero: string; patient_id: number } | null;
   created_at: string;
 }
 
@@ -348,14 +396,154 @@ export interface Invoice {
   site_id: number;
   patient_id: number;
   insurance_convention_id: number | null;
+  insurance_convention_label?: string | null;
   numero: string;
   date_emission: string;
+  date_echeance: string | null;
   montant_total: number;
   montant_part_patient: number;
   montant_part_assurance: number;
   statut: InvoiceStatus;
+  patient?: { id: number; first_name: string; last_name: string; patient_number: string } | null;
+  site?: { id: number; name: string } | null;
   items?: InvoiceItem[];
   payments?: Payment[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ServiceTariff {
+  id: number;
+  structure_id: number;
+  code: string;
+  libelle: string;
+  categorie: string;
+  prix_unitaire: number;
+  actif: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type QuoteStatut = "brouillon" | "emis" | "converti" | "expire" | "annule";
+
+export interface QuoteItem {
+  id: number;
+  quote_id: number;
+  billable_item_id: number | null;
+  libelle: string;
+  categorie: string;
+  quantite: number;
+  prix_unitaire: number;
+  montant_total: number;
+}
+
+export interface Quote {
+  id: number;
+  structure_id: number;
+  site_id: number;
+  patient_id: number;
+  insurance_convention_id: number | null;
+  converted_invoice_id: number | null;
+  numero: string;
+  date_emission: string;
+  montant_total: number;
+  statut: QuoteStatut;
+  patient?: { id: number; first_name: string; last_name: string; patient_number: string } | null;
+  site?: { id: number; name: string } | null;
+  items?: QuoteItem[];
+  created_at: string;
+  updated_at: string;
+}
+
+export type BillableItemStatut = "a_facturer" | "facturee" | "annulee" | "a_tarifer";
+
+export interface BillableItem {
+  id: number;
+  structure_id: number;
+  patient_id: number;
+  billable_type: string;
+  billable_id: number;
+  categorie: string;
+  code_prestation: string;
+  libelle: string;
+  quantite: number;
+  prix_unitaire: number;
+  montant_total: number;
+  statut: BillableItemStatut;
+  created_at: string;
+  updated_at: string;
+}
+
+export type CashSessionStatut = "ouverte" | "fermee";
+
+export interface CashSession {
+  id: number;
+  structure_id: number;
+  site_id: number;
+  caissier_id: number;
+  caissier_label: string | null;
+  montant_ouverture: number;
+  montant_cloture: number | null;
+  ecart: number | null;
+  ouverte_le: string;
+  fermee_le: string | null;
+  statut: CashSessionStatut;
+  site?: { id: number; name: string } | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type InsuranceProviderType = "assurance_privee" | "ipm" | "mutuelle";
+
+export interface InsuranceConventionCoverageRule {
+  id: number;
+  insurance_convention_id: number;
+  categorie: string;
+  taux_couverture: number;
+  plafond_montant: number | null;
+  exclu: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InsuranceConvention {
+  id: number;
+  structure_id: number;
+  insurance_provider_id: number;
+  nom: string;
+  date_debut: string;
+  date_fin: string | null;
+  actif: boolean;
+  coverage_rules?: InsuranceConventionCoverageRule[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InsuranceProvider {
+  id: number;
+  structure_id: number;
+  nom: string;
+  type: InsuranceProviderType;
+  contact: string | null;
+  conventions?: InsuranceConvention[];
+  created_at: string;
+  updated_at: string;
+}
+
+export type BeneficiaireType = "assure_principal" | "ayant_droit";
+
+export interface PatientInsuranceCoverage {
+  id: number;
+  structure_id: number;
+  patient_id: number;
+  insurance_convention_id: number;
+  numero_adherent: string;
+  beneficiaire_type: BeneficiaireType;
+  date_debut: string;
+  date_fin: string | null;
+  actif: boolean;
+  patient?: { id: number; first_name: string; last_name: string; patient_number: string } | null;
+  convention?: { id: number; nom: string; provider_nom: string | null } | null;
   created_at: string;
   updated_at: string;
 }
@@ -452,8 +640,12 @@ export interface LabResult {
   interpretation: "normal" | "anormal" | "critique" | null;
   status: LabResultStatus;
   technical_validated_by: number | null;
+  technical_validator_label: string | null;
+  technical_validator_role: string | null;
   technical_validated_at: string | null;
   biological_validated_by: number | null;
+  biological_validator_label: string | null;
+  biological_validator_role: string | null;
   biological_validated_at: string | null;
   created_at: string;
 }
@@ -524,9 +716,14 @@ export interface ImagingReport {
   id: number;
   imaging_study_id: number;
   author_id: number;
+  author_label: string | null;
+  author_role: string | null;
   content: string;
   status: ImagingReportStatus;
   validated_at: string | null;
+  validated_by: number | null;
+  validator_label: string | null;
+  validator_role: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -726,6 +923,8 @@ export interface SurgicalChecklist {
   step: SurgicalChecklistStep;
   items: Record<string, unknown>[];
   validated_by: number | null;
+  validator_label: string | null;
+  validator_role: string | null;
   validated_at: string | null;
   created_at: string;
 }
@@ -966,4 +1165,356 @@ export interface BiomedicalEquipment {
   supplier: { id: number; nom: string } | null;
   created_at: string;
   updated_at: string;
+}
+
+export type StatutEmploi = "actif" | "en_conge" | "suspendu" | "termine";
+
+export interface EmployeeProfile {
+  id: number;
+  structure_id: number;
+  user_id: number;
+  date_embauche: string | null;
+  type_contrat: string | null;
+  statut_emploi: StatutEmploi;
+  qualification: string | null;
+  numero_ordre: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type WorkScheduleType = "normal" | "garde" | "astreinte";
+
+export interface WorkSchedule {
+  id: number;
+  structure_id: number;
+  user_id: number;
+  site_id: number;
+  jour_semaine: number | null;
+  date: string | null;
+  heure_debut: string;
+  heure_fin: string;
+  type: WorkScheduleType;
+  created_at: string;
+  updated_at: string;
+}
+
+export type LeaveRequestType = "conge_annuel" | "maladie" | "autre";
+export type LeaveRequestStatut = "demande" | "valide" | "refuse";
+
+export interface LeaveRequest {
+  id: number;
+  structure_id: number;
+  user_id: number;
+  type: LeaveRequestType;
+  date_debut: string;
+  date_fin: string;
+  statut: LeaveRequestStatut;
+  validated_by: number | null;
+  commentaire: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LeaveRequestOverlapWarning {
+  type: "overlap_schedule";
+  work_schedule_id: number;
+  date: string;
+  schedule_type: WorkScheduleType;
+}
+
+export interface PractitionerPlanningHoraire {
+  date: string;
+  work_schedule_id: number;
+  site_id: number;
+  type: WorkScheduleType;
+  heure_debut: string;
+  heure_fin: string;
+}
+
+export interface PractitionerPlanning {
+  horaires: PractitionerPlanningHoraire[];
+  jours_conges: string[];
+  conges: LeaveRequest[];
+}
+
+export interface OnCallEntry {
+  date: string;
+  user_id: number;
+  site_id: number;
+  type: Extract<WorkScheduleType, "garde" | "astreinte">;
+  heure_debut: string;
+  heure_fin: string;
+}
+
+export interface StaffUser {
+  id: number;
+  first_name: string;
+  last_name: string;
+  roles: string[];
+}
+
+export type ComplaintStatut = "ouverte" | "en_cours" | "resolue" | "close";
+export type ComplaintOrigin = "staff" | "patient";
+
+export interface ComplaintResponse {
+  id: number;
+  auteur_id: number;
+  auteur_label: string | null;
+  auteur_role: string | null;
+  message: string;
+  visible_patient: boolean;
+  created_at: string;
+}
+
+export interface Complaint {
+  id: number;
+  patient_id: number;
+  gestionnaire_id: number | null;
+  gestionnaire_label: string | null;
+  gestionnaire_role: string | null;
+  motif: string;
+  description: string;
+  service_concerne: string | null;
+  origin: ComplaintOrigin;
+  statut: ComplaintStatut;
+  resolved_at: string | null;
+  resolved_by: number | null;
+  resolved_by_label: string | null;
+  closed_at: string | null;
+  closed_by: number | null;
+  closed_by_label: string | null;
+  responses?: ComplaintResponse[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PatientSatisfactionSurvey {
+  id: number;
+  patient_id: number;
+  prestation_type: string | null;
+  prestation_id: number | null;
+  service: string | null;
+  note: number;
+  commentaire: string | null;
+  date: string;
+  created_at: string;
+}
+
+export type TeleconsultationStatut = "planifiee" | "en_cours" | "terminee" | "annulee";
+
+export interface Teleconsultation {
+  id: number;
+  structure_id: number;
+  site_id: number;
+  appointment_id: number;
+  patient_id: number;
+  practitioner_id: number;
+  consultation_id: number | null;
+  statut: TeleconsultationStatut;
+  lien_session: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ReferralStatut = "envoye" | "accepte" | "refuse" | "complete";
+
+export interface PatientReferral {
+  id: number;
+  structure_origine_id: number;
+  site_origine_id: number | null;
+  structure_destination_id: number;
+  patient_id: number;
+  praticien_referent_id: number;
+  motif: string;
+  statut: ReferralStatut;
+  compte_rendu_retour: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReferralPatientResume {
+  nom: string;
+  date_naissance: string;
+  numero_patient: string;
+}
+
+export interface StructureDirectoryEntry {
+  id: number;
+  code: string;
+  legal_name: string;
+  trade_name: string | null;
+  city: string | null;
+  is_active: boolean;
+}
+
+/**
+ * `GET /audit-logs` renvoie chaque entrée déjà mappée via `->through()` dans
+ * AuditLogController — pas une Resource. `properties` suit le comportement
+ * par défaut de spatie/laravel-activitylog (`logOnlyDirty()->logFillable()`) :
+ * seulement `{attributes}` à la création, `{attributes, old}` en modification.
+ * Traité comme un objet libre, jamais une forme plus précise. `causer_id`
+ * est `null` pour une action système (pas d'utilisateur authentifié).
+ */
+export interface AuditLogEntry {
+  id: number;
+  log_name: string | null;
+  description: string | null;
+  event: string | null;
+  subject_type: string | null;
+  subject_id: number | null;
+  causer_id: number | null;
+  ip_address: string | null;
+  properties: Record<string, unknown> | null;
+  created_at: string;
+}
+
+/**
+ * Forme du paginator Laravel brut (`->paginate()` sérialisé sans Resource) —
+ * volontairement distincte de `Paginated<T>` ci-dessus (forme `{data, meta,
+ * links}` des endpoints ::collection classiques). Ne pas réutiliser
+ * `Paginated<T>` ici : les deux formes JSON ne sont pas interchangeables.
+ */
+export interface AuditLogPage {
+  current_page: number;
+  data: AuditLogEntry[];
+  last_page: number;
+  per_page: number;
+  total: number;
+  from: number | null;
+  to: number | null;
+}
+
+export type NotificationCanal = "email" | "sms" | "whatsapp" | "push";
+
+export interface NotificationTemplate {
+  id: number;
+  structure_id: number | null;
+  type_evenement: string;
+  canal: NotificationCanal;
+  sujet: string | null;
+  contenu: string;
+  actif: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Compte de l'administrateur de plateforme (guard `platform`) — distinct de
+ * AuthenticatedUser/UserAccount (guard `sanctum`), pas de structure_id, pas
+ * de rôles/permissions Spatie : un seul type d'acteur possible sur ce guard.
+ */
+export interface PlatformAdmin {
+  id: number;
+  name: string;
+  email: string;
+}
+
+export type StructureType =
+  | "cabinet"
+  | "centre_specialise"
+  | "laboratoire"
+  | "imagerie"
+  | "clinique"
+  | "polyclinique"
+  | "groupe_sante";
+
+/** Forme complète de StructureResource — gérée exclusivement par l'espace plateforme. */
+export interface Structure {
+  id: number;
+  code: string;
+  legal_name: string;
+  trade_name: string | null;
+  type: StructureType;
+  logo_path: string | null;
+  address: string | null;
+  city: string | null;
+  country: string | null;
+  phone: string | null;
+  email: string | null;
+  opening_hours: Record<string, unknown> | null;
+  registration_number: string | null;
+  tax_number: string | null;
+  color_primary: string | null;
+  color_secondary: string | null;
+  currency: string | null;
+  locale: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StructureModule {
+  id: number;
+  structure_id: number;
+  module: string;
+  is_active: boolean;
+  activated_at: string | null;
+  deactivated_at: string | null;
+}
+
+/**
+ * Forme exacte de UserResource telle que renvoyée par
+ * PlatformStructureController::store() : `roles`/`sites` proviennent de
+ * relations non chargées (`whenLoaded`) et sont donc absentes du JSON — ne
+ * pas réutiliser AuthenticatedUser ici, qui les déclare requises.
+ */
+export interface PlatformCreatedAdminAccount {
+  id: number;
+  structure_id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string | null;
+  photo_path: string | null;
+  is_active: boolean;
+  must_change_password: boolean;
+  last_login_at: string | null;
+  two_factor_enabled: boolean;
+  two_factor_required: boolean;
+  roles: string[];
+  permissions: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Réponse de POST /platform/structures : `admin_generated_password` n'existe
+ * que dans cette réponse — aucun endpoint ne le restitue ensuite. Ne jamais
+ * persister ce champ au-delà de l'état local du composant qui l'affiche.
+ */
+export interface CreateStructureResponse {
+  structure: Structure;
+  admin: PlatformCreatedAdminAccount;
+  admin_generated_password: string;
+  message: string;
+}
+
+/**
+ * `GET /platform/audit-logs` : même patron que AuditLogEntry/AuditLogPage
+ * mais sans `log_name`/`event` (toujours 'administration_plateforme', déjà
+ * filtré côté serveur) et avec `structure_id` (la structure concernée par
+ * l'action, pas celle de l'acteur — PlatformAdmin n'en a pas).
+ */
+export interface PlatformAuditLogEntry {
+  id: number;
+  description: string | null;
+  structure_id: number | null;
+  subject_type: string | null;
+  subject_id: number | null;
+  causer_id: number | null;
+  ip_address: string | null;
+  properties: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface PlatformAuditLogPage {
+  current_page: number;
+  data: PlatformAuditLogEntry[];
+  last_page: number;
+  per_page: number;
+  total: number;
+  from: number | null;
+  to: number | null;
 }

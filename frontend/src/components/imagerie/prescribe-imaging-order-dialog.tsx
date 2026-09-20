@@ -11,7 +11,9 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { SiteSelectField } from "@/components/clinical/site-select-field";
 import { useCreateImagingOrder } from "@/hooks/use-imaging-orders";
+import { useSiteSelection } from "@/hooks/use-site-selection";
 import { apiErrorMessage } from "@/lib/api-error";
 import { EXAM_TYPE_LABEL } from "@/pages/imagerie/imaging-status";
 import type { ImagingExamType } from "@/types/api";
@@ -22,7 +24,14 @@ export interface PrescribeImagingOrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   patientId: number;
-  siteId: number | null;
+  /**
+   * Site fixé par l'appelant (ex. le site de la consultation en cours) — le
+   * sélecteur de site n'est alors pas affiché. Omettre cette prop pour que
+   * le dialogue résolve lui-même le site : automatiquement si l'utilisateur
+   * n'est rattaché qu'à un seul site, sinon via un sélecteur explicite (cas
+   * de l'administrateur, qui supervise plusieurs sites par conception).
+   */
+  fixedSiteId?: number | null;
   practitionerId: number;
   consultationId?: number | null;
   onCreated?: () => void;
@@ -38,7 +47,7 @@ export function PrescribeImagingOrderDialog({
   open,
   onOpenChange,
   patientId,
-  siteId,
+  fixedSiteId,
   practitionerId,
   consultationId = null,
   onCreated,
@@ -49,6 +58,9 @@ export function PrescribeImagingOrderDialog({
   const [createdOrderId, setCreatedOrderId] = useState<number | null>(null);
 
   const createImagingOrder = useCreateImagingOrder();
+  const siteSelection = useSiteSelection();
+  const siteId = fixedSiteId !== undefined ? fixedSiteId : siteSelection.siteId;
+  const showSiteSelector = fixedSiteId === undefined && siteSelection.needsManualSelection;
 
   useEffect(() => {
     if (!open) {
@@ -100,10 +112,19 @@ export function PrescribeImagingOrderDialog({
           </div>
         ) : (
           <div className="space-y-4">
-            {!siteId && (
-              <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
-                Aucun site associé à cette consultation — impossible de prescrire.
-              </p>
+            {showSiteSelector ? (
+              <SiteSelectField
+                siteId={siteSelection.siteId}
+                onChange={siteSelection.setSiteId}
+                options={siteSelection.options}
+                isLoading={siteSelection.isLoading}
+              />
+            ) : (
+              !siteId && (
+                <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+                  Aucun site associé à cette consultation — impossible de prescrire.
+                </p>
+              )
             )}
 
             <div>

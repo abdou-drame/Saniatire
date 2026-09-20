@@ -1,4 +1,4 @@
-import { AlertTriangle, Clock, PackagePlus, PackageX, Pill } from "lucide-react";
+import { AlertTriangle, Clock, PackagePlus, PackageX, Pill, Plus } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,14 +10,25 @@ import { KpiCard } from "@/components/ui/kpi-card";
 import { KpiRowSkeleton, TableSkeleton } from "@/components/ui/loading-state";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { CreateBatchDialog } from "@/components/pharmacie/create-batch-dialog";
+import { CreateProductDialog } from "@/components/pharmacie/create-product-dialog";
 import { StockMovementDialog } from "@/components/pharmacie/stock-movement-dialog";
+import { StockThresholdDialog } from "@/components/pharmacie/stock-threshold-dialog";
 import { useAuth } from "@/hooks/use-auth";
-import { useExpiryAlerts, useLowThresholdAlerts, useProduct, useProductBatches, useProducts } from "@/hooks/use-products";
+import {
+  useExpiryAlerts,
+  useLowThresholdAlerts,
+  useProduct,
+  useProductBatches,
+  useProducts,
+  useStockThresholds,
+} from "@/hooks/use-products";
+import { useSites } from "@/hooks/use-sites";
 import { apiErrorMessage } from "@/lib/api-error";
 import { formatDate } from "@/lib/datetime";
 import { PharmacieAlertesSection } from "@/pages/pharmacie/pharmacie-alertes-section";
 import { CATEGORIE_BADGE, CATEGORIE_LABEL } from "@/pages/pharmacie/pharmacie-status";
-import type { Product, ProductBatch, ProductCategorie } from "@/types/api";
+import type { Product, ProductBatch, ProductCategorie, StockThreshold } from "@/types/api";
 
 const CATEGORIE_OPTIONS: ProductCategorie[] = ["medicament", "consommable", "dispositif_medical"];
 
@@ -28,6 +39,9 @@ export function PharmaciePage() {
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [movementDialogOpen, setMovementDialogOpen] = useState(false);
   const [movementDialogProductId, setMovementDialogProductId] = useState<number | undefined>(undefined);
+  const [createProductDialogOpen, setCreateProductDialogOpen] = useState(false);
+  const [createBatchDialogOpen, setCreateBatchDialogOpen] = useState(false);
+  const [thresholdDialogOpen, setThresholdDialogOpen] = useState(false);
 
   const productsQuery = useProducts({ categorie: categorieFilter || undefined });
   const lowThresholdQuery = useLowThresholdAlerts();
@@ -36,6 +50,11 @@ export function PharmaciePage() {
 
   const productDetailQuery = useProduct(selectedProductId ?? undefined);
   const batchesQuery = useProductBatches({ productId: selectedProductId ?? undefined });
+  const productThresholdsQuery = useStockThresholds({
+    productId: selectedProductId ?? undefined,
+    enabled: Boolean(selectedProductId),
+  });
+  const sitesQuery = useSites();
 
   const today = new Date();
   const nearExpiryCount = (nearExpiryQuery.data ?? []).filter(
@@ -148,6 +167,12 @@ export function PharmaciePage() {
       <Card>
         <CardHeader>
           <CardTitle>Catalogue produits</CardTitle>
+          {hasPermission("stock.create") && (
+            <Button variant="secondary" size="sm" onClick={() => setCreateProductDialogOpen(true)}>
+              <Plus size={14} />
+              Nouveau produit
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="max-w-xs">
@@ -190,12 +215,26 @@ export function PharmaciePage() {
         <Card>
           <CardHeader>
             <CardTitle>Détail produit</CardTitle>
-            {hasPermission("stock.dispense") && (
-              <Button variant="secondary" size="sm" onClick={() => openMovementDialog(selectedProductId)}>
-                <PackagePlus size={14} />
-                Nouveau mouvement pour ce produit
-              </Button>
-            )}
+            <div className="flex flex-wrap gap-2">
+              {hasPermission("stock.create") && (
+                <Button variant="secondary" size="sm" onClick={() => setCreateBatchDialogOpen(true)}>
+                  <Plus size={14} />
+                  Nouveau lot
+                </Button>
+              )}
+              {hasPermission("stock.dispense") && (
+                <Button variant="secondary" size="sm" onClick={() => openMovementDialog(selectedProductId)}>
+                  <PackagePlus size={14} />
+                  Nouveau mouvement pour ce produit
+                </Button>
+              )}
+              {(hasPermission("stock.create") || hasPermission("stock.update")) && (
+                <Button variant="secondary" size="sm" onClick={() => setThresholdDialogOpen(true)}>
+                  <AlertTriangle size={14} />
+                  Configurer un seuil
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             {productDetailQuery.isLoading ? (
@@ -253,6 +292,35 @@ export function PharmaciePage() {
                 }
               />
             )}
+
+            <div>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-text-subtle">
+                Seuils d'alerte configurés
+              </p>
+              {productThresholdsQuery.isError ? (
+                <ErrorState
+                  message={apiErrorMessage(productThresholdsQuery.error)}
+                  onRetry={() => productThresholdsQuery.refetch()}
+                />
+              ) : (productThresholdsQuery.data?.data ?? []).length === 0 ? (
+                <p className="text-sm text-text-subtle">Aucun seuil configuré pour ce produit sur aucun site.</p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {(productThresholdsQuery.data?.data ?? []).map((threshold: StockThreshold) => (
+                    <li
+                      key={threshold.id}
+                      className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm"
+                    >
+                      <span className="text-text">
+                        {(sitesQuery.data ?? []).find((site) => site.id === threshold.site_id)?.name ??
+                          `Site #${threshold.site_id}`}
+                      </span>
+                      <span className="text-text-muted">Seuil minimum : {threshold.seuil_minimum}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -268,6 +336,40 @@ export function PharmaciePage() {
           lowThresholdQuery.refetch();
         }}
       />
+
+      <CreateProductDialog
+        open={createProductDialogOpen}
+        onOpenChange={setCreateProductDialogOpen}
+        onCreated={(productId) => {
+          productsQuery.refetch();
+          setSelectedProductId(productId);
+        }}
+      />
+
+      {selectedProductId && (
+        <CreateBatchDialog
+          open={createBatchDialogOpen}
+          onOpenChange={setCreateBatchDialogOpen}
+          productId={selectedProductId}
+          onCreated={() => {
+            batchesQuery.refetch();
+            productDetailQuery.refetch();
+            productsQuery.refetch();
+          }}
+        />
+      )}
+
+      {selectedProductId && (
+        <StockThresholdDialog
+          open={thresholdDialogOpen}
+          onOpenChange={setThresholdDialogOpen}
+          productId={selectedProductId}
+          onSaved={() => {
+            productThresholdsQuery.refetch();
+            lowThresholdQuery.refetch();
+          }}
+        />
+      )}
     </div>
   );
 }

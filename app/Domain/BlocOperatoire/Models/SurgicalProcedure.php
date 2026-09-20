@@ -106,6 +106,11 @@ class SurgicalProcedure extends Model implements Billable
         return $this->patient_id;
     }
 
+    public function billingStructureId(): int
+    {
+        return $this->structure_id;
+    }
+
     public function billingCategorie(): string
     {
         return 'chirurgie';

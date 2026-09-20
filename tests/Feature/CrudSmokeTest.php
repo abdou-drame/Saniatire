@@ -2,10 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Domain\Platform\Models\PlatformAdmin;
 use App\Domain\Structure\Models\Structure;
 use App\Domain\User\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class CrudSmokeTest extends TestCase
@@ -19,23 +21,47 @@ class CrudSmokeTest extends TestCase
         $this->seed(RolePermissionSeeder::class);
     }
 
-    public function test_structure_can_be_onboarded_via_the_api(): void
+    /**
+     * Administration plateforme : la création de structure n'est plus
+     * accessible via /api/structures (faille fermée, voir
+     * StructureController et PlatformAdminTest) — seul le guard `platform`
+     * peut désormais onboarder une nouvelle structure.
+     */
+    public function test_structure_can_be_onboarded_via_the_platform_admin_api(): void
     {
-        $response = $this->postJson('/api/structures', []);
+        $response = $this->postJson('/api/platform/structures', []);
         $response->assertUnauthorized();
 
-        $structure = Structure::factory()->create();
-        $admin = User::factory()->for($structure)->create();
-        $admin->assignRole('administrateur');
+        $platformAdmin = PlatformAdmin::create([
+            'name' => 'Admin Plateforme',
+            'email' => 'platform-admin@example.test',
+            'password' => Hash::make('un-mot-de-passe-solide'),
+        ]);
 
-        $response = $this->actingAs($admin)->postJson('/api/structures', [
+        $response = $this->actingAs($platformAdmin, 'platform')->postJson('/api/platform/structures', [
             'code' => 'NEW-001',
             'legal_name' => 'Cabinet du Plateau',
             'type' => 'cabinet',
+            'admin_first_name' => 'Awa',
+            'admin_last_name' => 'Koné',
+            'admin_email' => 'awa.kone@cabinet-plateau.example',
         ]);
 
         $response->assertCreated();
         $this->assertDatabaseHas('structures', ['code' => 'NEW-001']);
+    }
+
+    public function test_a_structures_own_administrateur_can_no_longer_create_structures_via_the_api(): void
+    {
+        $structure = Structure::factory()->create();
+        $admin = User::factory()->for($structure)->create();
+        $admin->assignRole('administrateur');
+
+        $this->actingAs($admin)->postJson('/api/structures', [
+            'code' => 'NEW-002',
+            'legal_name' => 'Ne Devrait Pas Exister',
+            'type' => 'cabinet',
+        ])->assertStatus(405);
     }
 
     public function test_admin_can_create_a_site_and_a_user_with_a_role(): void

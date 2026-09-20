@@ -48,11 +48,11 @@ export function useMedicalDashboard({ from, to, siteId, groupBy }: MedicalDashbo
   });
 }
 
-export function useQualiteDashboard({ from, to }: { from: string; to: string }) {
+export function useQualiteDashboard({ from, to, service }: { from: string; to: string; service?: string }) {
   return useQuery({
-    queryKey: ["dashboards", "qualite", from, to],
+    queryKey: ["dashboards", "qualite", from, to, service],
     queryFn: async () => {
-      const { data } = await api.get<QualiteDashboard>("/dashboards/qualite", { params: { from, to } });
+      const { data } = await api.get<QualiteDashboard>("/dashboards/qualite", { params: { from, to, service } });
       return data;
     },
   });

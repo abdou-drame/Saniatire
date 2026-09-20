@@ -39,7 +39,15 @@ class AuditLogController extends Controller implements HasMiddleware
         // Le modèle Activity vient du package et n'a pas BelongsToTenant :
         // l'isolation multi-tenant s'appuie sur structure_id renseigné à
         // l'écriture (AppServiceProvider::boot()), pas sur un scope global.
-        $query = Activity::query()->where('structure_id', $request->user()->structure_id);
+        // log_name administration_plateforme exclu explicitement : ces
+        // entrées portent le structure_id de la structure concernée (voir
+        // PlatformStructureController::auditPlatformAction()) et
+        // apparaîtraient donc ici pour un administrateur de structure
+        // (audit.view via son wildcard) sans cette exclusion — leur seul
+        // point de consultation voulu est PlatformAuditLogController.
+        $query = Activity::query()
+            ->where('structure_id', $request->user()->structure_id)
+            ->where('log_name', '!=', 'administration_plateforme');
 
         if (! empty($data['user_id'])) {
             $query->where('causer_id', $data['user_id'])->where('causer_type', \App\Domain\User\Models\User::class);

@@ -49,6 +49,7 @@ export interface CreateAppointmentInput {
   starts_at: string;
   duration_minutes: number;
   reason?: string;
+  force_override?: boolean;
 }
 
 export interface UpdateAppointmentInput {
@@ -59,6 +60,7 @@ export interface UpdateAppointmentInput {
   duration_minutes?: number;
   reason?: string;
   status?: AppointmentStatus;
+  force_override?: boolean;
 }
 
 function useInvalidateAppointments() {

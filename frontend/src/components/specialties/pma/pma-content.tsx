@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/error-state";
 import { TableSkeleton } from "@/components/ui/loading-state";
-import { useAuth } from "@/hooks/use-auth";
+import { SiteSelectField } from "@/components/clinical/site-select-field";
 import { useOpenConsultation } from "@/hooks/specialties/use-open-consultation";
 import {
   useAddPmaCycleMonitoring,
@@ -15,6 +15,7 @@ import {
   useCreatePmaRecord,
   usePmaRecord,
 } from "@/hooks/specialties/use-pma";
+import { useSiteSelection } from "@/hooks/use-site-selection";
 import { useSpecialtyAddForm } from "@/hooks/specialties/use-specialty-add-form";
 import { apiErrorMessage } from "@/lib/api-error";
 import { formatDate } from "@/lib/datetime";
@@ -39,7 +40,7 @@ const ATTEMPT_RESULT_STATUS: Record<string, "success" | "warning" | "neutral" | 
 };
 
 export function PmaContent({ patientId }: { patientId: number }) {
-  const { user } = useAuth();
+  const siteSelection = useSiteSelection();
   const recordQuery = usePmaRecord(patientId);
   const openConsultationQuery = useOpenConsultation(patientId);
   const createMutation = useCreatePmaRecord(patientId);
@@ -51,7 +52,8 @@ export function PmaContent({ patientId }: { patientId: number }) {
   }
 
   if (!recordQuery.data) {
-    const siteId = user?.sites[0]?.id ?? null;
+    const siteId = siteSelection.siteId;
+    const showSiteSelector = siteSelection.needsManualSelection;
 
     function handleCreate() {
       form.setGlobalError(null);
@@ -76,6 +78,14 @@ export function PmaContent({ patientId }: { patientId: number }) {
           <CardTitle>Créer le dossier PMA / Fertilité</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {showSiteSelector && (
+            <SiteSelectField
+              siteId={siteSelection.siteId}
+              onChange={siteSelection.setSiteId}
+              options={siteSelection.options}
+              isLoading={siteSelection.isLoading}
+            />
+          )}
           <SpecialtyForm
             columns={2}
             fields={PMA_RECORD_FIELDS}

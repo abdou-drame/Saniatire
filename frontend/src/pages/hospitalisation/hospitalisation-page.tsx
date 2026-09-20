@@ -7,11 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
-import { Input } from "@/components/ui/input";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { Label } from "@/components/ui/label";
 import { KpiRowSkeleton } from "@/components/ui/loading-state";
 import { Select } from "@/components/ui/select";
+import { PatientPicker } from "@/components/clinical/patient-picker";
 import { useAuth } from "@/hooks/use-auth";
 import { useHospitalizations, useHospitalizationStats, type HospitalizationFilters } from "@/hooks/use-hospitalizations";
 import { apiErrorMessage } from "@/lib/api-error";
@@ -21,7 +21,7 @@ import {
   HOSPITALIZATION_STATUS_LABEL,
 } from "@/pages/hospitalisation/hospitalisation-status";
 import { WardBedGrid } from "@/pages/hospitalisation/ward-bed-grid";
-import type { Hospitalization, HospitalizationStatus } from "@/types/api";
+import type { Bed, Hospitalization, HospitalizationStatus, Patient, Ward } from "@/types/api";
 
 const STATUS_OPTIONS: HospitalizationStatus[] = ["en_cours", "sorti", "transfere"];
 
@@ -29,18 +29,24 @@ export function HospitalisationPage() {
   const { user, hasPermission } = useAuth();
 
   const [statusFilter, setStatusFilter] = useState<HospitalizationStatus | "">("");
-  const [patientIdFilter, setPatientIdFilter] = useState("");
+  const [patientFilter, setPatientFilter] = useState<Patient | null>(null);
   const [admitDialogOpen, setAdmitDialogOpen] = useState(false);
+  const [admitPrefill, setAdmitPrefill] = useState<{ wardId: number; bedId: number } | null>(null);
 
   const statsQuery = useHospitalizationStats();
 
   const filters: HospitalizationFilters = {
     status: statusFilter || undefined,
-    patientId: patientIdFilter.trim() ? Number(patientIdFilter) : undefined,
+    patientId: patientFilter?.id,
   };
   const hospitalizationsQuery = useHospitalizations(filters);
 
   const canAdmit = hasPermission("hospitalisation.create");
+
+  function handleSelectFreeBed(ward: Ward, bed: Bed) {
+    setAdmitPrefill({ wardId: ward.id, bedId: bed.id });
+    setAdmitDialogOpen(true);
+  }
 
   const columns: DataTableColumn<Hospitalization>[] = [
     {
@@ -110,7 +116,7 @@ export function HospitalisationPage() {
         </div>
       )}
 
-      <WardBedGrid />
+      <WardBedGrid onSelectFreeBed={canAdmit ? handleSelectFreeBed : undefined} />
 
       <Card>
         <CardHeader>
@@ -133,14 +139,8 @@ export function HospitalisationPage() {
               </Select>
             </div>
             <div>
-              <Label>ID patient</Label>
-              <Input
-                type="number"
-                min={1}
-                value={patientIdFilter}
-                onChange={(e) => setPatientIdFilter(e.target.value)}
-                placeholder="ex. 42"
-              />
+              <Label>Patient</Label>
+              <PatientPicker value={patientFilter} onChange={setPatientFilter} placeholder="Rechercher un patient..." />
             </div>
           </div>
 
@@ -170,9 +170,13 @@ export function HospitalisationPage() {
       {canAdmit && user && (
         <AdmitPatientDialog
           open={admitDialogOpen}
-          onOpenChange={setAdmitDialogOpen}
-          siteId={user.sites[0]?.id ?? null}
+          onOpenChange={(next) => {
+            setAdmitDialogOpen(next);
+            if (!next) setAdmitPrefill(null);
+          }}
           attendingPhysicianId={user.id}
+          initialWardId={admitPrefill?.wardId}
+          initialBedId={admitPrefill?.bedId}
           onAdmitted={() => {
             statsQuery.refetch();
           }}

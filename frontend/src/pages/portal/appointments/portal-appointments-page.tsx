@@ -1,13 +1,14 @@
-import { CalendarDays, CalendarPlus } from "lucide-react";
-import { useMemo } from "react";
+import { CalendarDays, CalendarPlus, X } from "lucide-react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { TableSkeleton } from "@/components/ui/loading-state";
 import { usePortalPractitioners, usePortalSites } from "@/hooks/portal/use-portal-booking";
-import { usePortalAppointments } from "@/hooks/portal/use-portal-appointments";
+import { useCancelPortalAppointment, usePortalAppointments } from "@/hooks/portal/use-portal-appointments";
 import { formatDateTime } from "@/lib/datetime";
 import { portalErrorMessage } from "@/lib/portal-error";
 import type { Appointment, AppointmentStatus } from "@/types/api";
@@ -21,8 +22,19 @@ const STATUS_META: Record<AppointmentStatus, { label: string; status: BadgeProps
   absent: { label: "Absence", status: "warning" },
 };
 
-function AppointmentRow({ appointment, practitionerName, siteName }: { appointment: Appointment; practitionerName: string; siteName: string }) {
+function AppointmentRow({
+  appointment,
+  practitionerName,
+  siteName,
+  onCancel,
+}: {
+  appointment: Appointment;
+  practitionerName: string;
+  siteName: string;
+  onCancel?: (appointment: Appointment) => void;
+}) {
   const meta = STATUS_META[appointment.status];
+  const isCancellable = appointment.status !== "annule" && appointment.status !== "termine";
   return (
     <div className="flex items-center justify-between gap-4 rounded-md border border-border bg-surface px-4 py-3">
       <div className="min-w-0">
@@ -32,7 +44,19 @@ function AppointmentRow({ appointment, practitionerName, siteName }: { appointme
         </p>
         {appointment.reason && <p className="truncate text-xs text-text-subtle">{appointment.reason}</p>}
       </div>
-      <Badge status={meta.status}>{meta.label}</Badge>
+      <div className="flex shrink-0 items-center gap-2">
+        <Badge status={meta.status}>{meta.label}</Badge>
+        {onCancel && isCancellable && (
+          <button
+            type="button"
+            onClick={() => onCancel(appointment)}
+            className="rounded-md p-1.5 text-text-muted hover:bg-danger/10 hover:text-danger"
+            aria-label="Annuler ce rendez-vous"
+          >
+            <X size={14} />
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -41,6 +65,9 @@ export function PortalAppointmentsPage() {
   const appointmentsQuery = usePortalAppointments();
   const practitionersQuery = usePortalPractitioners();
   const sitesQuery = usePortalSites();
+  const cancelAppointment = useCancelPortalAppointment();
+  const [cancelling, setCancelling] = useState<Appointment | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
   const practitionerNames = useMemo(() => {
     const map = new Map<number, string>();
@@ -95,6 +122,10 @@ export function PortalAppointmentsPage() {
                       appointment={a}
                       practitionerName={practitionerNames.get(a.practitioner_id) ?? "Praticien"}
                       siteName={siteNames.get(a.site_id) ?? "Site"}
+                      onCancel={(appointment) => {
+                        setCancelError(null);
+                        setCancelling(appointment);
+                      }}
                     />
                   ))}
                 </div>
@@ -123,6 +154,36 @@ export function PortalAppointmentsPage() {
           </Card>
         </>
       )}
+
+      <ConfirmDialog
+        open={Boolean(cancelling)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCancelling(null);
+            setCancelError(null);
+          }
+        }}
+        title="Annuler ce rendez-vous ?"
+        description={
+          cancelling
+            ? `Votre rendez-vous du ${formatDateTime(cancelling.starts_at)} sera annulé. Cette action est irréversible.${
+                cancelError ? ` ${cancelError}` : ""
+              }`
+            : ""
+        }
+        confirmLabel="Annuler le rendez-vous"
+        isPending={cancelAppointment.isPending}
+        onConfirm={() => {
+          if (!cancelling) return;
+          cancelAppointment.mutate(cancelling.id, {
+            onSuccess: () => {
+              setCancelling(null);
+              setCancelError(null);
+            },
+            onError: (error) => setCancelError(portalErrorMessage(error)),
+          });
+        }}
+      />
     </div>
   );
 }

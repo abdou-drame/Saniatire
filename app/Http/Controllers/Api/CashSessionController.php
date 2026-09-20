@@ -25,10 +25,20 @@ class CashSessionController extends Controller implements HasMiddleware
 
     public function index(Request $request): JsonResponse
     {
-        $query = CashSession::query()->orderByDesc('id');
+        $query = CashSession::query()
+            ->with(['caissier:id,first_name,last_name', 'site:id,name'])
+            ->orderByDesc('id');
 
         if ($request->filled('statut')) {
             $query->where('statut', $request->string('statut'));
+        }
+
+        if ($request->filled('caissier_id')) {
+            $query->where('caissier_id', $request->integer('caissier_id'));
+        }
+
+        if ($request->filled('site_id')) {
+            $query->where('site_id', $request->integer('site_id'));
         }
 
         return CashSessionResource::collection($query->paginate())->response();
@@ -60,7 +70,7 @@ class CashSessionController extends Controller implements HasMiddleware
 
     public function show(CashSession $cashSession): CashSessionResource
     {
-        return new CashSessionResource($cashSession);
+        return new CashSessionResource($cashSession->load(['caissier:id,first_name,last_name', 'site:id,name']));
     }
 
     /**

@@ -189,4 +189,117 @@ class Step3BlocOperatoireTest extends TestCase
 
         $this->actingAs($chirurgienB)->getJson("/api/surgical-procedures/{$procedure['id']}")->assertNotFound();
     }
+
+    // --- Régression : résolution du site sur le formulaire de planification --
+
+    /**
+     * Régression bug report : un chirurgien rattaché à un seul site personnel
+     * doit voir ce site sans jamais recevoir de 403 sur GET /sites (repli
+     * manuel de useSiteSelection côté frontend quand l'auto-résolution
+     * échoue). Couvre le second correctif — sites.view accordé au rôle
+     * chirurgien dans RolePermissionSeeder — indépendamment du premier
+     * correctif (eager-load de `sites` sur la connexion), testé dans
+     * AuthTest::test_login_response_includes_the_users_sites.
+     */
+    public function test_chirurgien_with_a_personal_site_can_list_structure_sites(): void
+    {
+        $this->chirurgienA->sites()->attach($this->siteA->id);
+
+        $this->actingAs($this->chirurgienA)
+            ->getJson('/api/sites')
+            ->assertOk()
+            ->assertJsonFragment(['id' => $this->siteA->id]);
+    }
+
+    // --- Sélection par nom (patient / chirurgien / anesthésiste) -------------
+
+    /**
+     * Régression bug report : le formulaire de planification sélectionnait
+     * patient/chirurgien/anesthésiste par ID numérique brut. /api/practitioners
+     * doit filtrer par rôle pour que le frontend puisse peupler des listes
+     * déroulantes par nom (chirurgien/anesthésiste), sans exposer tous les
+     * praticiens de la structure indistinctement.
+     */
+    public function test_practitioners_endpoint_filters_by_role(): void
+    {
+        $surgeons = $this->actingAs($this->secretaireA)
+            ->getJson('/api/practitioners?role=chirurgien')
+            ->assertOk()
+            ->json('data');
+        $this->assertCount(1, $surgeons);
+        $this->assertSame($this->chirurgienA->id, $surgeons[0]['id']);
+
+        $anesthesiologists = $this->actingAs($this->secretaireA)
+            ->getJson('/api/practitioners?role=anesthesiste')
+            ->assertOk()
+            ->json('data');
+        $this->assertCount(1, $anesthesiologists);
+        $this->assertSame($this->anesthesisteA->id, $anesthesiologists[0]['id']);
+    }
+
+    /**
+     * Bout en bout : planifier une intervention en résolvant patient,
+     * chirurgien et anesthésiste par nom — via la recherche patient et le
+     * filtre de rôle de /api/practitioners — plutôt qu'en connaissant un ID à
+     * l'avance, exactement le parcours que suit désormais
+     * PlanSurgicalProcedureDialog côté frontend.
+     */
+    public function test_can_plan_a_procedure_with_participants_resolved_by_name(): void
+    {
+        $foundPatient = $this->actingAs($this->secretaireA)
+            ->getJson('/api/patients?search='.urlencode($this->patientA->last_name))
+            ->assertOk()
+            ->json('data.0');
+        $this->assertSame($this->patientA->id, $foundPatient['id']);
+
+        $surgeon = $this->actingAs($this->secretaireA)
+            ->getJson('/api/practitioners?role=chirurgien')
+            ->assertOk()
+            ->json('data.0');
+        $anesthesiologist = $this->actingAs($this->secretaireA)
+            ->getJson('/api/practitioners?role=anesthesiste')
+            ->assertOk()
+            ->json('data.0');
+
+        $this->actingAs($this->chirurgienA)->postJson('/api/surgical-procedures', [
+            'site_id' => $this->siteA->id,
+            'patient_id' => $foundPatient['id'],
+            'surgeon_id' => $surgeon['id'],
+            'anesthesiologist_id' => $anesthesiologist['id'],
+            'operating_room' => 'Bloc 1',
+            'procedure_type' => 'Appendicectomie',
+            'scheduled_at' => now()->addDay()->toDateTimeString(),
+        ])->assertCreated()->assertJsonPath('data.status', 'planifiee');
+    }
+
+    // --- Identité du validateur de la checklist -------------------------------
+
+    /**
+     * Régression bug report QA : chaque étape validée de la checklist
+     * chirurgicale tracait déjà l'utilisateur (validated_by, capture
+     * inchangée) mais ne l'exposait jamais — ni le contrôleur (eager-load),
+     * ni la resource. Le nom (et le rôle) du validateur doivent désormais
+     * être renvoyés par GET /surgical-procedures/{id}.
+     */
+    public function test_the_checklist_validator_identity_is_returned_by_the_api(): void
+    {
+        $procedure = $this->schedule();
+        $this->actingAs($this->chirurgienA)->postJson("/api/surgical-procedures/{$procedure['id']}/start")->assertOk();
+
+        $this->validateStep($procedure, 'avant_anesthesie')->assertCreated();
+
+        $response = $this->actingAs($this->chirurgienA)
+            ->getJson("/api/surgical-procedures/{$procedure['id']}")
+            ->assertOk();
+
+        $checklist = collect($response->json('data.checklists'))
+            ->firstWhere('step', 'avant_anesthesie');
+
+        $this->assertSame($this->anesthesisteA->id, $checklist['validated_by']);
+        $this->assertSame(
+            trim("{$this->anesthesisteA->first_name} {$this->anesthesisteA->last_name}"),
+            $checklist['validator_label'],
+        );
+        $this->assertSame('anesthesiste', $checklist['validator_role']);
+    }
 }

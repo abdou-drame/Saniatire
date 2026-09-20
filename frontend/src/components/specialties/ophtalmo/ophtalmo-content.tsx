@@ -1,9 +1,10 @@
-import { useAuth } from "@/hooks/use-auth";
 import { useOpenConsultation } from "@/hooks/specialties/use-open-consultation";
 import { useCreateOphtalmoRecord, useOphtalmoRecords } from "@/hooks/specialties/use-ophtalmo";
+import { useSiteSelection } from "@/hooks/use-site-selection";
 import { useSpecialtyAddForm } from "@/hooks/specialties/use-specialty-add-form";
 import { SpecialtyDiagnosisCard } from "@/components/clinical/specialty-diagnosis-card";
 import { SpecialtyHistorySection } from "@/components/clinical/specialty-history-section";
+import { SiteSelectField } from "@/components/clinical/site-select-field";
 import { ErrorState } from "@/components/ui/error-state";
 import { TableSkeleton } from "@/components/ui/loading-state";
 import { apiErrorMessage } from "@/lib/api-error";
@@ -13,7 +14,7 @@ import { buildSpecialtyPayload } from "@/lib/specialty-validation";
 import type { OphtalmoRecord } from "@/types/specialty";
 
 export function OphtalmoContent({ patientId }: { patientId: number }) {
-  const { user } = useAuth();
+  const siteSelection = useSiteSelection();
   const recordsQuery = useOphtalmoRecords(patientId);
   const openConsultationQuery = useOpenConsultation(patientId);
   const createMutation = useCreateOphtalmoRecord(patientId);
@@ -24,7 +25,8 @@ export function OphtalmoContent({ patientId }: { patientId: number }) {
     return <ErrorState message={apiErrorMessage(recordsQuery.error)} onRetry={() => recordsQuery.refetch()} />;
   }
 
-  const siteId = user?.sites[0]?.id ?? null;
+  const siteId = siteSelection.siteId;
+  const showSiteSelector = siteSelection.needsManualSelection;
 
   function handleSubmit() {
     form.setGlobalError(null);
@@ -48,6 +50,15 @@ export function OphtalmoContent({ patientId }: { patientId: number }) {
   return (
     <div className="space-y-4">
       <SpecialtyDiagnosisCard consultationId={openConsultationQuery.data?.id ?? null} />
+
+      {showSiteSelector && (
+        <SiteSelectField
+          siteId={siteSelection.siteId}
+          onChange={siteSelection.setSiteId}
+          options={siteSelection.options}
+          isLoading={siteSelection.isLoading}
+        />
+      )}
 
       <SpecialtyHistorySection
         title="Examens ophtalmologiques"

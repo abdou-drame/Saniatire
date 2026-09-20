@@ -129,15 +129,18 @@ class AppointmentController extends Controller implements HasMiddleware
      * hasConflict() reste inchangé (responsabilité unique : chevauchement
      * rendez-vous/rendez-vous, domaine Appointment) pour ne prendre aucun
      * risque de régression sur les tests de l'étape 2 ; la disponibilité
-     * théorique du praticien (horaires RH + gardes/astreintes − congés
-     * validés) est un second contrôle composé ici, au même endroit exact
-     * où hasConflict() est déjà invoqué.
+     * théorique du praticien (horaires normaux − congés validés ; garde et
+     * astreinte ne comptent jamais comme du temps réservable, voir
+     * PractitionerPresenceService::ON_CALL_TYPES) est un second contrôle
+     * composé ici, au même endroit exact où hasConflict() est déjà invoqué.
      *
-     * Une dérogation (force_override=true) n'est acceptée que si
-     * l'utilisateur a la permission appointments.override_planning ; dans
-     * ce cas le contrôle est court-circuité et l'action est tracée dans
-     * un journal d'audit dédié (log_name "derogation_planning"), sur le
-     * même modèle que PmaRecordController::logSensitiveAccess().
+     * Une dérogation (force_override=true) est le seul moyen de créer un
+     * rendez-vous hors planning normal — y compris pendant une garde/
+     * astreinte — et n'est acceptée que si l'utilisateur a la permission
+     * appointments.override_planning ; dans ce cas le contrôle est
+     * court-circuité et l'action est tracée dans un journal d'audit dédié
+     * (log_name "derogation_planning"), sur le même modèle que
+     * PmaRecordController::logSensitiveAccess().
      */
     private function presenceCheckResponse(AppointmentRequest $request, int $structureId, int $practitionerId, Carbon $startsAt, int $durationMinutes): ?JsonResponse
     {

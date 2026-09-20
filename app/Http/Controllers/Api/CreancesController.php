@@ -27,7 +27,7 @@ class CreancesController extends Controller implements HasMiddleware
     {
         $query = Invoice::query()
             ->whereIn('statut', ['emise', 'partiellement_payee'])
-            ->with('payments');
+            ->with(['payments', 'patient:id,first_name,last_name,patient_number', 'insuranceConvention.provider']);
 
         if ($request->filled('patient_id')) {
             $query->where('patient_id', $request->integer('patient_id'));
@@ -64,7 +64,9 @@ class CreancesController extends Controller implements HasMiddleware
                 'invoice_id' => $invoice->id,
                 'numero' => $invoice->numero,
                 'patient_id' => $invoice->patient_id,
+                'patient_label' => $invoice->patient ? trim("{$invoice->patient->first_name} {$invoice->patient->last_name}") : null,
                 'insurance_convention_id' => $invoice->insurance_convention_id,
+                'insurance_provider_label' => $invoice->insuranceConvention?->provider?->nom,
                 'date_emission' => $invoice->date_emission,
                 'anciennete_jours' => $anciennete,
                 'solde' => $solde,

@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/error-state";
 import { TableSkeleton } from "@/components/ui/loading-state";
-import { useAuth } from "@/hooks/use-auth";
+import { SiteSelectField } from "@/components/clinical/site-select-field";
 import { useOpenConsultation } from "@/hooks/specialties/use-open-consultation";
 import {
   useAddMentalHealthScaleScore,
   useCreateMentalHealthRecord,
   useMentalHealthRecord,
 } from "@/hooks/specialties/use-sante-mentale";
+import { useSiteSelection } from "@/hooks/use-site-selection";
 import { useSpecialtyAddForm } from "@/hooks/specialties/use-specialty-add-form";
 import { apiErrorMessage } from "@/lib/api-error";
 import { formatDate } from "@/lib/datetime";
@@ -21,7 +22,7 @@ import { buildSpecialtyPayload } from "@/lib/specialty-validation";
 import type { MentalHealthScaleScore } from "@/types/specialty";
 
 export function SanteMentaleContent({ patientId }: { patientId: number }) {
-  const { user } = useAuth();
+  const siteSelection = useSiteSelection();
   const recordQuery = useMentalHealthRecord(patientId);
   const openConsultationQuery = useOpenConsultation(patientId);
   const createMutation = useCreateMentalHealthRecord(patientId);
@@ -33,7 +34,8 @@ export function SanteMentaleContent({ patientId }: { patientId: number }) {
   }
 
   if (!recordQuery.data) {
-    const siteId = user?.sites[0]?.id ?? null;
+    const siteId = siteSelection.siteId;
+    const showSiteSelector = siteSelection.needsManualSelection;
 
     function handleCreate() {
       form.setGlobalError(null);
@@ -58,6 +60,14 @@ export function SanteMentaleContent({ patientId }: { patientId: number }) {
           <CardTitle>Créer le dossier de santé mentale</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {showSiteSelector && (
+            <SiteSelectField
+              siteId={siteSelection.siteId}
+              onChange={siteSelection.setSiteId}
+              options={siteSelection.options}
+              isLoading={siteSelection.isLoading}
+            />
+          )}
           <SpecialtyForm
             columns={2}
             fields={MENTAL_HEALTH_RECORD_FIELDS}

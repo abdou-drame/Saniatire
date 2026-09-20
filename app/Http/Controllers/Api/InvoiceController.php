@@ -29,7 +29,9 @@ class InvoiceController extends Controller implements HasMiddleware
 
     public function index(Request $request): JsonResponse
     {
-        $query = Invoice::query()->orderByDesc('id');
+        $query = Invoice::query()
+            ->with(['patient:id,first_name,last_name,patient_number', 'site:id,name', 'insuranceConvention:id,nom'])
+            ->orderByDesc('id');
 
         if ($request->filled('patient_id')) {
             $query->where('patient_id', $request->integer('patient_id'));
@@ -125,7 +127,13 @@ class InvoiceController extends Controller implements HasMiddleware
 
     public function show(Invoice $invoice): InvoiceResource
     {
-        return new InvoiceResource($invoice->load(['items', 'payments']));
+        return new InvoiceResource($invoice->load([
+            'items',
+            'payments',
+            'patient:id,first_name,last_name,patient_number',
+            'site:id,name',
+            'insuranceConvention:id,nom',
+        ]));
     }
 
     public function emit(Invoice $invoice): InvoiceResource

@@ -11,14 +11,27 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { PatientPicker } from "@/components/clinical/patient-picker";
+import { SiteSelectField } from "@/components/clinical/site-select-field";
 import { usePlanSurgicalProcedure } from "@/hooks/use-surgical-procedures";
+import { usePractitioners } from "@/hooks/use-practitioners";
+import { useSiteSelection } from "@/hooks/use-site-selection";
 import { apiErrorMessage } from "@/lib/api-error";
+import type { Patient } from "@/types/api";
 
 export interface PlanSurgicalProcedureDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   patientId?: number;
-  siteId: number | null;
+  /**
+   * Site fixé par l'appelant (ex. le site de la consultation en cours) — le
+   * sélecteur de site n'est alors pas affiché. Omettre cette prop pour que
+   * le dialogue résolve lui-même le site : automatiquement si l'utilisateur
+   * n'est rattaché qu'à un seul site, sinon via un sélecteur explicite (cas
+   * de l'administrateur, qui supervise plusieurs sites par conception).
+   */
+  fixedSiteId?: number | null;
   hospitalizationId?: number | null;
   defaultSurgeonId?: number;
   defaultAnesthesiologistId?: number;
@@ -39,13 +52,13 @@ export function PlanSurgicalProcedureDialog({
   open,
   onOpenChange,
   patientId,
-  siteId,
+  fixedSiteId,
   hospitalizationId = null,
   defaultSurgeonId,
   defaultAnesthesiologistId,
   onPlanned,
 }: PlanSurgicalProcedureDialogProps) {
-  const [patientIdInput, setPatientIdInput] = useState(patientId ? String(patientId) : "");
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [surgeonId, setSurgeonId] = useState(defaultSurgeonId ? String(defaultSurgeonId) : "");
   const [anesthesiologistId, setAnesthesiologistId] = useState(
     defaultAnesthesiologistId ? String(defaultAnesthesiologistId) : "",
@@ -57,10 +70,15 @@ export function PlanSurgicalProcedureDialog({
   const [plannedId, setPlannedId] = useState<number | null>(null);
 
   const planProcedure = usePlanSurgicalProcedure();
+  const surgeonsQuery = usePractitioners("chirurgien");
+  const anesthesiologistsQuery = usePractitioners("anesthesiste");
+  const siteSelection = useSiteSelection();
+  const siteId = fixedSiteId !== undefined ? fixedSiteId : siteSelection.siteId;
+  const showSiteSelector = fixedSiteId === undefined && siteSelection.needsManualSelection;
 
   useEffect(() => {
     if (!open) {
-      setPatientIdInput(patientId ? String(patientId) : "");
+      setSelectedPatient(null);
       setSurgeonId(defaultSurgeonId ? String(defaultSurgeonId) : "");
       setAnesthesiologistId(defaultAnesthesiologistId ? String(defaultAnesthesiologistId) : "");
       setOperatingRoom("");
@@ -71,7 +89,7 @@ export function PlanSurgicalProcedureDialog({
     }
   }, [open, patientId, defaultSurgeonId, defaultAnesthesiologistId]);
 
-  const resolvedPatientId = patientId ?? (patientIdInput.trim() ? Number(patientIdInput) : null);
+  const resolvedPatientId = patientId ?? selectedPatient?.id ?? null;
 
   function handleSubmit() {
     if (
@@ -134,38 +152,58 @@ export function PlanSurgicalProcedureDialog({
           </div>
         ) : (
           <div className="space-y-4">
-            {!siteId && (
-              <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
-                Aucun site associé — impossible de planifier une intervention.
-              </p>
+            {showSiteSelector ? (
+              <SiteSelectField
+                siteId={siteSelection.siteId}
+                onChange={siteSelection.setSiteId}
+                options={siteSelection.options}
+                isLoading={siteSelection.isLoading}
+              />
+            ) : (
+              !siteId && (
+                <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+                  Aucun site associé — impossible de planifier une intervention.
+                </p>
+              )
             )}
 
             {patientId === undefined && (
               <div>
-                <Label>ID patient</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={patientIdInput}
-                  onChange={(e) => setPatientIdInput(e.target.value)}
-                  placeholder="ex. 42"
-                />
+                <Label>Patient</Label>
+                <PatientPicker value={selectedPatient} onChange={setSelectedPatient} />
               </div>
             )}
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <Label>ID chirurgien</Label>
-                <Input type="number" min={1} value={surgeonId} onChange={(e) => setSurgeonId(e.target.value)} />
+                <Label>Chirurgien</Label>
+                <Select
+                  value={surgeonId}
+                  onChange={(e) => setSurgeonId(e.target.value)}
+                  disabled={surgeonsQuery.isLoading}
+                >
+                  <option value="">Sélectionner...</option>
+                  {(surgeonsQuery.data ?? []).map((practitioner) => (
+                    <option key={practitioner.id} value={practitioner.id}>
+                      {practitioner.first_name} {practitioner.last_name}
+                    </option>
+                  ))}
+                </Select>
               </div>
               <div>
-                <Label>ID anesthésiste</Label>
-                <Input
-                  type="number"
-                  min={1}
+                <Label>Anesthésiste</Label>
+                <Select
                   value={anesthesiologistId}
                   onChange={(e) => setAnesthesiologistId(e.target.value)}
-                />
+                  disabled={anesthesiologistsQuery.isLoading}
+                >
+                  <option value="">Sélectionner...</option>
+                  {(anesthesiologistsQuery.data ?? []).map((practitioner) => (
+                    <option key={practitioner.id} value={practitioner.id}>
+                      {practitioner.first_name} {practitioner.last_name}
+                    </option>
+                  ))}
+                </Select>
               </div>
               <div>
                 <Label>Salle</Label>

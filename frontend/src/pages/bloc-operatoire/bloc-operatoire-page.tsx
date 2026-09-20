@@ -1,13 +1,13 @@
 import { CalendarPlus, Syringe } from "lucide-react";
 import { useState } from "react";
 import { PlanSurgicalProcedureDialog } from "@/components/bloc-operatoire/plan-surgical-procedure-dialog";
+import { PatientPicker } from "@/components/clinical/patient-picker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { useAuth } from "@/hooks/use-auth";
@@ -16,7 +16,7 @@ import { apiErrorMessage } from "@/lib/api-error";
 import { formatDateTime } from "@/lib/datetime";
 import { PROCEDURE_STATUS_BADGE, PROCEDURE_STATUS_LABEL } from "@/pages/bloc-operatoire/bloc-operatoire-status";
 import { SurgicalProcedureDetail } from "@/pages/bloc-operatoire/surgical-procedure-detail";
-import type { SurgicalProcedure, SurgicalProcedureStatus } from "@/types/api";
+import type { Patient, SurgicalProcedure, SurgicalProcedureStatus } from "@/types/api";
 
 const STATUS_OPTIONS: SurgicalProcedureStatus[] = ["planifiee", "en_cours", "terminee", "annulee"];
 
@@ -24,13 +24,13 @@ export function BlocOperatoirePage() {
   const { user, hasPermission } = useAuth();
 
   const [statusFilter, setStatusFilter] = useState<SurgicalProcedureStatus | "">("");
-  const [patientIdFilter, setPatientIdFilter] = useState("");
+  const [patientFilter, setPatientFilter] = useState<Patient | null>(null);
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
   const filters: SurgicalProcedureFilters = {
     status: statusFilter || undefined,
-    patientId: patientIdFilter.trim() ? Number(patientIdFilter) : undefined,
+    patientId: patientFilter?.id,
   };
   const proceduresQuery = useSurgicalProcedures(filters);
 
@@ -111,13 +111,11 @@ export function BlocOperatoirePage() {
               </Select>
             </div>
             <div>
-              <Label>ID patient</Label>
-              <Input
-                type="number"
-                min={1}
-                value={patientIdFilter}
-                onChange={(e) => setPatientIdFilter(e.target.value)}
-                placeholder="ex. 42"
+              <Label>Patient</Label>
+              <PatientPicker
+                value={patientFilter}
+                onChange={setPatientFilter}
+                placeholder="Filtrer par patient..."
               />
             </div>
           </div>
@@ -149,7 +147,6 @@ export function BlocOperatoirePage() {
         <PlanSurgicalProcedureDialog
           open={planDialogOpen}
           onOpenChange={setPlanDialogOpen}
-          siteId={user.sites[0]?.id ?? null}
           onPlanned={() => proceduresQuery.refetch()}
         />
       )}

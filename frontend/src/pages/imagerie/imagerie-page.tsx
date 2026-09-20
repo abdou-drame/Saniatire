@@ -1,10 +1,10 @@
 import { CalendarCheck, ClipboardList, FileCheck2, Scan, Send } from "lucide-react";
 import { useState } from "react";
+import { PatientPicker } from "@/components/clinical/patient-picker";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { KpiRowSkeleton } from "@/components/ui/loading-state";
@@ -12,12 +12,13 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { Select } from "@/components/ui/select";
 import { useAuth } from "@/hooks/use-auth";
 import { useImagingOrders, useImagingOrderStats, type ImagingOrderFilters } from "@/hooks/use-imaging-orders";
+import { usePractitioners } from "@/hooks/use-practitioners";
 import { apiErrorMessage } from "@/lib/api-error";
 import { formatDateTime } from "@/lib/datetime";
 import { ImagerieManipulateurSection } from "@/pages/imagerie/imagerie-manipulateur-section";
 import { ImagerieRadiologueSection } from "@/pages/imagerie/imagerie-radiologue-section";
 import { EXAM_TYPE_LABEL, ORDER_STATUS_BADGE, ORDER_STATUS_LABEL } from "@/pages/imagerie/imaging-status";
-import type { ImagingExamType, ImagingOrder, ImagingOrderStatus } from "@/types/api";
+import type { ImagingExamType, ImagingOrder, ImagingOrderStatus, Patient } from "@/types/api";
 
 const STATUS_OPTIONS: ImagingOrderStatus[] = [
   "demande",
@@ -37,16 +38,17 @@ export function ImageriePage() {
 
   const [statusFilter, setStatusFilter] = useState<ImagingOrderStatus | "">("");
   const [examTypeFilter, setExamTypeFilter] = useState<ImagingExamType | "">("");
-  const [patientIdFilter, setPatientIdFilter] = useState("");
+  const [patientFilter, setPatientFilter] = useState<Patient | null>(null);
   const [requesterIdFilter, setRequesterIdFilter] = useState("");
 
   const statsQuery = useImagingOrderStats();
+  const requestersQuery = usePractitioners();
 
   const filters: ImagingOrderFilters = {
     status: statusFilter || undefined,
     examType: examTypeFilter || undefined,
-    patientId: patientIdFilter.trim() ? Number(patientIdFilter) : undefined,
-    requesterId: requesterIdFilter.trim() ? Number(requesterIdFilter) : undefined,
+    patientId: patientFilter?.id,
+    requesterId: requesterIdFilter ? Number(requesterIdFilter) : undefined,
   };
   const ordersQuery = useImagingOrders(filters);
 
@@ -143,24 +145,27 @@ export function ImageriePage() {
               </Select>
             </div>
             <div>
-              <Label>ID patient</Label>
-              <Input
-                type="number"
-                min={1}
-                value={patientIdFilter}
-                onChange={(e) => setPatientIdFilter(e.target.value)}
-                placeholder="ex. 42"
+              <Label>Patient</Label>
+              <PatientPicker
+                value={patientFilter}
+                onChange={setPatientFilter}
+                placeholder="Filtrer par patient..."
               />
             </div>
             <div>
-              <Label>ID praticien prescripteur</Label>
-              <Input
-                type="number"
-                min={1}
+              <Label>Praticien prescripteur</Label>
+              <Select
                 value={requesterIdFilter}
                 onChange={(e) => setRequesterIdFilter(e.target.value)}
-                placeholder="ex. 7"
-              />
+                disabled={requestersQuery.isLoading}
+              >
+                <option value="">Tous</option>
+                {(requestersQuery.data ?? []).map((practitioner) => (
+                  <option key={practitioner.id} value={practitioner.id}>
+                    {practitioner.first_name} {practitioner.last_name}
+                  </option>
+                ))}
+              </Select>
             </div>
           </div>
 

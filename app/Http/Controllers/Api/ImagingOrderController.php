@@ -67,7 +67,8 @@ class ImagingOrderController extends Controller implements HasMiddleware
             'patient:id,first_name,last_name,patient_number',
             'requester',
             'site:id,name',
-            'studies.report',
+            'studies.report.author',
+            'studies.report.validator',
         ]));
     }
 

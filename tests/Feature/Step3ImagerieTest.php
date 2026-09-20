@@ -173,6 +173,27 @@ class Step3ImagerieTest extends TestCase
             ->assertForbidden();
     }
 
+    // --- Régression site courant --------------------------------------------
+
+    public function test_administrateur_without_a_personal_site_can_create_an_imaging_order_by_specifying_the_site(): void
+    {
+        // Même régression que Step3HospitalisationTest : un administrateur
+        // n'a délibérément aucun site de rattachement personnel. Le backend
+        // a toujours accepté un site_id explicite ; seul le frontend
+        // bloquait faute de site "par défaut" à proposer.
+        $administrateurA = User::factory()->for($this->structureA)->create();
+        $administrateurA->assignRole('administrateur');
+
+        $this->assertSame(0, $administrateurA->sites()->count());
+
+        $this->actingAs($administrateurA)->postJson('/api/imaging-orders', [
+            'site_id' => $this->siteA->id,
+            'patient_id' => $this->patientA->id,
+            'prescriber_id' => $this->medecinA->id,
+            'exam_type' => 'scanner',
+        ])->assertCreated()->assertJsonPath('data.site_id', $this->siteA->id);
+    }
+
     // --- Isolation multi-tenant --------------------------------------------
 
     public function test_an_imaging_order_is_invisible_to_another_structure(): void
@@ -183,5 +204,49 @@ class Step3ImagerieTest extends TestCase
         $medecinB->assignRole('medecin');
 
         $this->actingAs($medecinB)->getJson("/api/imaging-orders/{$order->id}")->assertNotFound();
+    }
+
+    // --- Identité auteur / validateur du compte rendu -------------------------
+
+    /**
+     * Régression audit élargi (même bug report que la checklist bloc
+     * opératoire) : contrairement à la checklist, ImagingReport::validated_at
+     * n'était même pas accompagné d'un validated_by en base — lacune de
+     * capture, pas seulement d'exposition (migration
+     * 2026_09_03_000001_add_validated_by_to_imaging_reports_table). L'auteur
+     * du compte rendu (author_id) était lui capturé mais jamais exposé comme
+     * nom résolu non plus.
+     */
+    public function test_the_report_author_and_validator_identities_are_returned_by_the_api(): void
+    {
+        $order = $this->createOrder();
+        $study = $this->createStudy($order);
+
+        $reportId = $this->actingAs($this->radiologueA)->postJson("/api/imaging-studies/{$study['id']}/report", [
+            'content' => 'Aucune anomalie décelée.',
+        ])->assertCreated()->json('data.id');
+
+        $this->actingAs($this->radiologueA)->patchJson("/api/imaging-reports/{$reportId}/validate")->assertOk();
+
+        $data = $this->actingAs($this->medecinA)
+            ->getJson("/api/imaging-orders/{$order->id}")
+            ->assertOk()
+            ->json('data');
+
+        $report = collect($data['studies'])->firstWhere('id', $study['id'])['report'];
+
+        $this->assertSame($this->radiologueA->id, $report['author_id']);
+        $this->assertSame(
+            trim("{$this->radiologueA->first_name} {$this->radiologueA->last_name}"),
+            $report['author_label'],
+        );
+        $this->assertSame('radiologue', $report['author_role']);
+
+        $this->assertSame($this->radiologueA->id, $report['validated_by']);
+        $this->assertSame(
+            trim("{$this->radiologueA->first_name} {$this->radiologueA->last_name}"),
+            $report['validator_label'],
+        );
+        $this->assertSame('radiologue', $report['validator_role']);
     }
 }

@@ -29,7 +29,9 @@ class QuoteController extends Controller implements HasMiddleware
 
     public function index(Request $request): JsonResponse
     {
-        $query = Quote::query()->orderByDesc('id');
+        $query = Quote::query()
+            ->with(['patient:id,first_name,last_name,patient_number', 'site:id,name'])
+            ->orderByDesc('id');
 
         if ($request->filled('patient_id')) {
             $query->where('patient_id', $request->integer('patient_id'));
@@ -84,7 +86,7 @@ class QuoteController extends Controller implements HasMiddleware
 
     public function show(Quote $quote): QuoteResource
     {
-        return new QuoteResource($quote->load('items'));
+        return new QuoteResource($quote->load(['items', 'patient:id,first_name,last_name,patient_number', 'site:id,name']));
     }
 
     public function cancel(Quote $quote): QuoteResource

@@ -225,6 +225,29 @@ class Step3LaboratoireTest extends TestCase
             ->assertForbidden();
     }
 
+    // --- Régression site courant --------------------------------------------
+
+    public function test_administrateur_without_a_personal_site_can_create_a_lab_order_by_specifying_the_site(): void
+    {
+        // Même régression que Step3HospitalisationTest / Step3ImagerieTest :
+        // un administrateur n'a délibérément aucun site de rattachement
+        // personnel. Le backend a toujours accepté un site_id explicite ;
+        // seul le frontend bloquait faute de site "par défaut" à proposer.
+        $administrateurA = User::factory()->for($this->structureA)->create();
+        $administrateurA->assignRole('administrateur');
+
+        $this->assertSame(0, $administrateurA->sites()->count());
+
+        $this->actingAs($administrateurA)->postJson('/api/lab-orders', [
+            'site_id' => $this->siteA->id,
+            'patient_id' => $this->patientA->id,
+            'prescriber_id' => $this->medecinA->id,
+            'items' => [
+                ['loinc_code_id' => $this->glycemie->id],
+            ],
+        ])->assertCreated()->assertJsonPath('data.site_id', $this->siteA->id);
+    }
+
     // --- Isolation multi-tenant --------------------------------------------
 
     public function test_a_lab_order_is_invisible_to_another_structure(): void
@@ -253,5 +276,53 @@ class Step3LaboratoireTest extends TestCase
             ->getJson("/api/loinc-codes/{$this->glycemie->id}")
             ->assertOk()
             ->assertJsonPath('data.code', '2345-7');
+    }
+
+    // --- Identité des validateurs technique/biologique ------------------------
+
+    /**
+     * Régression audit élargi (même bug report que la checklist bloc
+     * opératoire) : technical_validated_by/biological_validated_by étaient
+     * déjà correctement capturés mais jamais exposés comme nom résolu — ni
+     * le contrôleur (eager-load), ni la resource.
+     */
+    public function test_the_technical_and_biological_validator_identities_are_returned_by_the_api(): void
+    {
+        $order = $this->createOrder();
+        $item = $order->items()->first();
+
+        $sampleId = $this->actingAs($this->technicienA)->postJson("/api/lab-orders/{$order->id}/samples", [
+            'barcode' => 'SMP-00000006',
+            'sample_type' => 'sang',
+        ])->assertCreated()->json('data.id');
+
+        $resultId = $this->actingAs($this->technicienA)->postJson("/api/lab-samples/{$sampleId}/results", [
+            'lab_order_item_id' => $item->id,
+            'value' => '0.95',
+        ])->assertCreated()->json('data.id');
+
+        $this->actingAs($this->technicienA)->patchJson("/api/lab-results/{$resultId}/validate-technique")->assertOk();
+        $this->actingAs($this->biologisteA)->patchJson("/api/lab-results/{$resultId}/validate-biologique")->assertOk();
+
+        $data = $this->actingAs($this->medecinA)
+            ->getJson("/api/lab-orders/{$order->id}")
+            ->assertOk()
+            ->json('data');
+
+        $result = collect($data['items'])->firstWhere('id', $item->id)['result'];
+
+        $this->assertSame($this->technicienA->id, $result['technical_validated_by']);
+        $this->assertSame(
+            trim("{$this->technicienA->first_name} {$this->technicienA->last_name}"),
+            $result['technical_validator_label'],
+        );
+        $this->assertSame('technicien_laboratoire', $result['technical_validator_role']);
+
+        $this->assertSame($this->biologisteA->id, $result['biological_validated_by']);
+        $this->assertSame(
+            trim("{$this->biologisteA->first_name} {$this->biologisteA->last_name}"),
+            $result['biological_validator_label'],
+        );
+        $this->assertSame('biologiste', $result['biological_validator_role']);
     }
 }

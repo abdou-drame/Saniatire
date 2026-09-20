@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
+import { RequiredPasswordChangePanel } from "@/components/auth/required-password-change-panel";
 import { TwoFactorSetupPanel } from "@/components/two-factor/two-factor-setup-panel";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -29,6 +30,19 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
             </p>
           </div>
           <TwoFactorSetupPanel onActivated={() => refreshUser()} />
+        </div>
+      </div>
+    );
+  }
+
+  if (user && user.must_change_password) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-bg px-4">
+        <div className="w-full max-w-sm space-y-4 rounded-lg border border-border bg-surface p-6 shadow-[var(--shadow-card)]">
+          <div>
+            <h1 className="font-heading text-base font-semibold text-text">Changement de mot de passe requis</h1>
+          </div>
+          <RequiredPasswordChangePanel onChanged={() => refreshUser()} />
         </div>
       </div>
     );

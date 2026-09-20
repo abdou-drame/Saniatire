@@ -190,4 +190,68 @@ class ComplaintTest extends TestCase
             ->assertOk();
         $this->assertCount(1, $response->json('data'));
     }
+
+    // --- Identité du gestionnaire / de l'auteur / du résolveur / du clôtureur -
+
+    /**
+     * Régression audit élargi (même bug report que la checklist bloc
+     * opératoire) : deux natures de lacune coexistaient ici. gestionnaire_id
+     * et auteur_id (réponse) étaient déjà capturés mais jamais exposés comme
+     * nom résolu (lacune d'exposition, comme la checklist). resolved_by et
+     * closed_by, eux, n'existaient même pas en base avant la migration
+     * 2026_09_03_000002 (lacune de capture, comme le compte rendu
+     * d'imagerie) — resolved_at/closed_at ne traçaient qu'une date, jamais
+     * qui avait résolu ou clôturé.
+     */
+    public function test_the_manager_author_resolver_and_closer_identities_are_returned_by_the_api(): void
+    {
+        $complaintId = $this->actingAs($this->secretaireA)->postJson('/api/complaints', [
+            'patient_id' => $this->patientA->id,
+            'motif' => 'attente',
+            'description' => 'Temps d\'attente trop long en salle.',
+        ])->assertCreated()->json('data.id');
+
+        $this->actingAs($this->directionA)->postJson("/api/complaints/{$complaintId}/assign", [
+            'gestionnaire_id' => $this->gestionnaire1->id,
+        ])->assertOk();
+
+        $this->actingAs($this->gestionnaire1)->postJson("/api/complaints/{$complaintId}/respond", [
+            'message' => 'Nous étudions votre réclamation.',
+        ])->assertCreated();
+
+        $this->actingAs($this->gestionnaire1)->postJson("/api/complaints/{$complaintId}/resolve")->assertOk();
+        $this->actingAs($this->gestionnaire1)->postJson("/api/complaints/{$complaintId}/close")->assertOk();
+
+        $data = $this->actingAs($this->gestionnaire1)
+            ->getJson("/api/complaints/{$complaintId}")
+            ->assertOk()
+            ->json('data');
+
+        $expectedName = trim("{$this->gestionnaire1->first_name} {$this->gestionnaire1->last_name}");
+
+        $this->assertSame($expectedName, $data['gestionnaire_label']);
+        $this->assertSame('secretaire', $data['gestionnaire_role']);
+
+        $this->assertSame($this->gestionnaire1->id, $data['resolved_by']);
+        $this->assertSame($expectedName, $data['resolved_by_label']);
+
+        $this->assertSame($this->gestionnaire1->id, $data['closed_by']);
+        $this->assertSame($expectedName, $data['closed_by_label']);
+
+        $this->assertSame($expectedName, $data['responses'][0]['auteur_label']);
+        $this->assertSame('secretaire', $data['responses'][0]['auteur_role']);
+    }
+
+    // --- Origine (portail patient) ------------------------------------------
+
+    public function test_a_complaint_created_by_staff_has_the_staff_origin(): void
+    {
+        $complaintId = $this->actingAs($this->secretaireA)->postJson('/api/complaints', [
+            'patient_id' => $this->patientA->id,
+            'motif' => 'attente',
+            'description' => 'Temps d\'attente trop long en salle.',
+        ])->assertCreated()->json('data.id');
+
+        $this->assertSame('staff', Complaint::find($complaintId)->origin);
+    }
 }

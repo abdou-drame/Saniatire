@@ -25,9 +25,12 @@ class Complaint extends Model
         'motif',
         'description',
         'service_concerne',
+        'origin',
         'statut',
         'resolved_at',
+        'resolved_by',
         'closed_at',
+        'closed_by',
     ];
 
     protected function casts(): array
@@ -46,6 +49,16 @@ class Complaint extends Model
     public function gestionnaire(): BelongsTo
     {
         return $this->belongsTo(User::class, 'gestionnaire_id');
+    }
+
+    public function resolvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'resolved_by');
+    }
+
+    public function closedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'closed_by');
     }
 
     public function responses(): HasMany

@@ -83,6 +83,51 @@ export function useApprovalRules() {
   });
 }
 
+export interface CreateApprovalRuleInput {
+  level: number;
+  min_amount: number;
+  role_name: string;
+}
+
+export function useCreateApprovalRule() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: CreateApprovalRuleInput) => {
+      const { data } = await api.post<{ data: ApprovalRule }>("/approval-rules", input);
+      return data.data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["approval-rules"] }),
+  });
+}
+
+export interface UpdateApprovalRuleInput {
+  id: number;
+  level?: number;
+  min_amount?: number;
+  role_name?: string;
+}
+
+export function useUpdateApprovalRule() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...input }: UpdateApprovalRuleInput) => {
+      const { data } = await api.patch<{ data: ApprovalRule }>(`/approval-rules/${id}`, input);
+      return data.data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["approval-rules"] }),
+  });
+}
+
+export function useDeleteApprovalRule() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      await api.delete(`/approval-rules/${id}`);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["approval-rules"] }),
+  });
+}
+
 export function usePurchaseOrders(filters: { statut?: PurchaseOrderStatut } = {}) {
   return useQuery({
     queryKey: ["purchase-orders", filters],

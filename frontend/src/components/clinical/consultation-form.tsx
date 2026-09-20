@@ -3,14 +3,18 @@ import { BedDouble, CheckCircle2, FlaskConical, LoaderCircle, Scan, Syringe } fr
 import { useState, type FormEvent } from "react";
 import { AdmitPatientDialog } from "@/components/hospitalisation/admit-patient-dialog";
 import { PlanSurgicalProcedureDialog } from "@/components/bloc-operatoire/plan-surgical-procedure-dialog";
+import { AiSummaryCard } from "@/components/clinical/ai-summary-card";
+import { AnomalyAlertCard } from "@/components/clinical/anomaly-alert-card";
 import { DiagnosisPicker } from "@/components/clinical/diagnosis-picker";
 import { Field, inputClass, textareaClass } from "@/components/clinical/form-controls";
 import { PrescribeImagingOrderDialog } from "@/components/imagerie/prescribe-imaging-order-dialog";
 import { PrescribeLabOrderDialog } from "@/components/laboratoire/prescribe-lab-order-dialog";
+import { SiteSelectField } from "@/components/clinical/site-select-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { useHospitalizations } from "@/hooks/use-hospitalizations";
+import { useSiteSelection } from "@/hooks/use-site-selection";
 import { useSurgicalProcedures } from "@/hooks/use-surgical-procedures";
 import { apiErrorMessage } from "@/lib/api-error";
 import { api } from "@/lib/api";
@@ -127,6 +131,12 @@ function buildPayload(form: FormState) {
 export interface ConsultationFormProps {
   patientId: number;
   practitionerId: number;
+  /**
+   * Site connu de l'appelant pour créer la consultation (ex. celui du
+   * queueEntry). Si `null`/absent, résolu automatiquement (site unique de
+   * l'utilisateur) ou via un sélecteur explicite (administrateur, direction
+   * — pas de site personnel par conception).
+   */
   siteId: number | null;
   appointmentId?: number | null;
   queueEntryId?: number | null;
@@ -159,6 +169,8 @@ export function ConsultationForm({
 
   const canProposeHospitalisation = hasPermission("hospitalisation.create");
   const canProposeIntervention = hasPermission("bloc_operatoire.create");
+  const canGenerateAiSummary = hasPermission("ai.consultation_summary");
+  const canViewAnomalies = hasPermission("ai.anomaly_detection");
   const activeHospitalizationsQuery = useHospitalizations({ patientId, status: "en_cours" });
   const surgicalProceduresQuery = useSurgicalProcedures({ patientId });
   const hasActiveHospitalization = (activeHospitalizationsQuery.data?.data.length ?? 0) > 0;
@@ -167,6 +179,21 @@ export function ConsultationForm({
   );
 
   const isClosed = consultation?.status === "terminee";
+
+  const siteSelection = useSiteSelection();
+  // Un site connu par l'appelant (ex. celui du queueEntry) prime toujours ;
+  // sinon on résout automatiquement (site unique) ou via le sélecteur ci-
+  // dessous — jamais un blocage silencieux faute de site personnel
+  // (administrateur, direction).
+  const resolvedNewSiteId = siteId ?? siteSelection.siteId;
+  const showSiteSelector = !consultation && siteId === null && siteSelection.needsManualSelection;
+
+  // Une fois la consultation créée, son site_id (backend, jamais nul) fait
+  // foi — ne jamais recalculer depuis le queueEntry/l'utilisateur courant,
+  // qui peuvent avoir changé ou disparu (ex. rechargement de page perdant
+  // le location.state du queueEntry) sans que le site réel de la
+  // consultation n'ait bougé.
+  const effectiveSiteId = consultation?.site_id ?? resolvedNewSiteId;
 
   function updateField(key: keyof FormState, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -201,12 +228,12 @@ export function ConsultationForm({
         const { data } = await api.patch<{ data: Consultation }>(`/consultations/${consultation.id}`, payload);
         return data.data;
       }
-      if (!siteId) {
+      if (!resolvedNewSiteId) {
         throw new Error("NO_SITE");
       }
       const { data } = await api.post<{ data: Consultation }>("/consultations", {
         ...payload,
-        site_id: siteId,
+        site_id: resolvedNewSiteId,
         patient_id: patientId,
         practitioner_id: practitionerId,
         appointment_id: appointmentId,
@@ -385,6 +412,17 @@ export function ConsultationForm({
           </CardContent>
         </Card>
 
+        {showSiteSelector && (
+          <div className="mt-4">
+            <SiteSelectField
+              siteId={siteSelection.siteId}
+              onChange={siteSelection.setSiteId}
+              options={siteSelection.options}
+              isLoading={siteSelection.isLoading}
+            />
+          </div>
+        )}
+
         {globalError && (
           <p className="mt-4 rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
             {globalError}
@@ -419,6 +457,26 @@ export function ConsultationForm({
         </CardContent>
       </Card>
 
+      {consultation && canGenerateAiSummary && (
+        <AiSummaryCard
+          consultationId={consultation.id}
+          onInserted={(updated) => {
+            // Resynchronise l'état local (state + form) après une insertion IA explicite,
+            // exactement comme le onSuccess de saveMutation ci-dessus — sinon le textarea du
+            // champ ciblé afficherait encore l'ancienne valeur alors que la consultation en
+            // base a changé.
+            setConsultation(updated);
+            setForm(fromConsultation(updated));
+            onConsultationChange?.(updated);
+            queryClient.invalidateQueries({ queryKey: ["consultations"] });
+            queryClient.invalidateQueries({ queryKey: ["queue-entries"] });
+            queryClient.invalidateQueries({ queryKey: ["patients", patientId, "timeline"] });
+          }}
+        />
+      )}
+
+      {consultation && canViewAnomalies && <AnomalyAlertCard consultationId={consultation.id} />}
+
       <Card>
         <CardHeader>
           <CardTitle>Laboratoire</CardTitle>
@@ -434,7 +492,7 @@ export function ConsultationForm({
                 open={labDialogOpen}
                 onOpenChange={setLabDialogOpen}
                 patientId={patientId}
-                siteId={siteId}
+                fixedSiteId={effectiveSiteId}
                 practitionerId={practitionerId}
                 consultationId={consultation.id}
               />
@@ -462,7 +520,7 @@ export function ConsultationForm({
                 open={imagingDialogOpen}
                 onOpenChange={setImagingDialogOpen}
                 patientId={patientId}
-                siteId={siteId}
+                fixedSiteId={effectiveSiteId}
                 practitionerId={practitionerId}
                 consultationId={consultation.id}
               />
@@ -494,7 +552,7 @@ export function ConsultationForm({
                     open={admitDialogOpen}
                     onOpenChange={setAdmitDialogOpen}
                     patientId={patientId}
-                    siteId={siteId}
+                    fixedSiteId={effectiveSiteId}
                     attendingPhysicianId={practitionerId}
                     onAdmitted={() => {
                       activeHospitalizationsQuery.refetch();
@@ -531,7 +589,7 @@ export function ConsultationForm({
                     open={planProcedureDialogOpen}
                     onOpenChange={setPlanProcedureDialogOpen}
                     patientId={patientId}
-                    siteId={siteId}
+                    fixedSiteId={effectiveSiteId}
                     onPlanned={() => {
                       surgicalProceduresQuery.refetch();
                       queryClient.invalidateQueries({ queryKey: ["patients", patientId, "timeline"] });

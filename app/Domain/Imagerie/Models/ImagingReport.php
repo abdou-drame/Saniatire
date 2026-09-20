@@ -25,6 +25,7 @@ class ImagingReport extends Model
         'content',
         'status',
         'validated_at',
+        'validated_by',
     ];
 
     protected function casts(): array
@@ -42,6 +43,11 @@ class ImagingReport extends Model
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'author_id');
+    }
+
+    public function validator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'validated_by');
     }
 
     public function getActivitylogOptions(): LogOptions

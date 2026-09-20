@@ -2,16 +2,19 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Appointment\Events\RendezVousAnnule;
 use App\Domain\Appointment\Events\RendezVousCree;
 use App\Domain\Appointment\Models\Appointment;
 use App\Domain\Facturation\Models\Invoice;
 use App\Domain\Imagerie\Models\ImagingReport;
 use App\Domain\Laboratoire\Models\LabResult;
+use App\Domain\Qualite\Models\Complaint;
 use App\Domain\Shared\Scheduling\PractitionerPresenceService;
 use App\Domain\Structure\Models\Site;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\AppointmentResource;
+use App\Http\Resources\ComplaintResource;
 use App\Http\Resources\InvoiceResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -38,8 +41,13 @@ class PatientPortalController extends Controller
     /**
      * Créneaux libres d'un praticien de sa structure sur [from, to] :
      * réutilise PractitionerPresenceService::planningFor() (présence
-     * théorique RH) puis retire les créneaux déjà occupés via
-     * Appointment::hasConflict(), même primitives que
+     * théorique RH, hors garde/astreinte — PractitionerPresenceService::
+     * ON_CALL_TYPES n'est jamais proposé au patient : c'est de la
+     * couverture d'urgence/sur-appel, pas des plages de consultation
+     * ouvertes à la prise de RDV en ligne ; seul le personnel gère ce
+     * temps-là via l'écran Plannings, WorkScheduleController::planning,
+     * qui lui affiche bien tous les types) puis retire les créneaux déjà
+     * occupés via Appointment::hasConflict(), même primitives que
      * AppointmentController::store().
      */
     public function creneauxDisponibles(Request $request): JsonResponse
@@ -59,7 +67,7 @@ class PatientPortalController extends Controller
         $from = Carbon::parse($data['from']);
         $to = Carbon::parse($data['to']);
 
-        $planning = app(PractitionerPresenceService::class)->planningFor($structureId, $data['practitioner_id'], $from, $to);
+        $planning = app(PractitionerPresenceService::class)->planningFor($structureId, $data['practitioner_id'], $from, $to, PractitionerPresenceService::ON_CALL_TYPES);
 
         $creneaux = [];
 
@@ -95,10 +103,14 @@ class PatientPortalController extends Controller
             return response()->json(['message' => 'Le praticien est déjà occupé sur ce créneau.'], 422);
         }
 
-        // Contrairement au flux staff (AppointmentController::presenceCheckResponse),
-        // un patient ne dispose d'aucune dérogation possible : hors planning
-        // théorique du praticien (horaires RH, congés validés), la demande
-        // est toujours refusée, jamais forçable depuis le portail patient.
+        // isPresent() exclut par défaut ON_CALL_TYPES (garde/astreinte) : un
+        // patient ne peut jamais réserver sur ces horaires-là, même si un
+        // créneau y était historiquement listé côté API. Contrairement au
+        // flux staff (AppointmentController::presenceCheckResponse), le
+        // patient ne dispose en plus d'aucune dérogation possible : hors
+        // planning théorique du praticien (horaires normaux, congés
+        // validés), la demande est toujours refusée, jamais forçable depuis
+        // le portail patient.
         $endsAt = $startsAt->clone()->addMinutes($data['duration_minutes']);
         $presence = app(PractitionerPresenceService::class)->isPresent($patient->structure_id, $data['practitioner_id'], $startsAt, $endsAt);
 
@@ -119,6 +131,25 @@ class PatientPortalController extends Controller
         RendezVousCree::dispatch($appointment);
 
         return (new AppointmentResource($appointment))->response()->setStatusCode(201);
+    }
+
+    /**
+     * Même transition d'état (status -> 'annule') que
+     * AppointmentController::cancel() côté personnel, aucune contrainte de
+     * délai minimum n'existant côté backend pour cette action — on n'en
+     * invente pas une ici. Seule différence : l'identité est dérivée de
+     * $request->user() plutôt que d'une permission Spatie, avec le même
+     * garde-fou 404 (jamais 403) qu'invoice()/complaint() ci-dessus.
+     */
+    public function cancelAppointment(Request $request, Appointment $appointment): AppointmentResource
+    {
+        abort_unless($appointment->patient_id === $request->user()->id, 404);
+
+        $appointment->update(['status' => 'annule']);
+
+        RendezVousAnnule::dispatch($appointment);
+
+        return new AppointmentResource($appointment);
     }
 
     public function invoices(Request $request): JsonResponse
@@ -157,6 +188,62 @@ class PatientPortalController extends Controller
         abort_unless($invoice->patient_id === $request->user()->id, 404);
 
         return new InvoiceResource($invoice->load(['items', 'payments']));
+    }
+
+    /**
+     * Réclamations du patient connecté — le complément, pas le remplacement,
+     * de la saisie personnel côté ComplaintController. `patient_id` est
+     * toujours dérivé de $request->user() (guard `patient`), jamais reçu du
+     * client, même à la création : voir storeComplaint().
+     */
+    public function complaints(Request $request): JsonResponse
+    {
+        $complaints = Complaint::query()
+            ->where('patient_id', $request->user()->id)
+            ->orderByDesc('id')
+            ->paginate();
+
+        return ComplaintResource::collection($complaints)->response();
+    }
+
+    /**
+     * Une réponse interne (visible_patient=false, ajoutée par le personnel
+     * via ComplaintController::respond) n'est jamais chargée ici — seul le
+     * fil destiné au patient lui est montré. Même raison de 404 (jamais 403)
+     * qu'invoice() ci-dessus : une réclamation d'un autre patient de la même
+     * structure ne doit jamais confirmer son existence.
+     */
+    public function complaint(Request $request, Complaint $complaint): ComplaintResource
+    {
+        abort_unless($complaint->patient_id === $request->user()->id, 404);
+
+        $complaint->load(['responses' => fn ($query) => $query->where('visible_patient', true)->with('auteur')]);
+
+        return new ComplaintResource($complaint);
+    }
+
+    /**
+     * origin est forcé à 'patient' ici — jamais accepté du payload — pour que
+     * l'écran personnel puisse distinguer sans ambiguïté une réclamation
+     * saisie par eux (ComplaintController::store, origin='staff') d'une
+     * réclamation soumise directement par le patient.
+     */
+    public function storeComplaint(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'motif' => ['required', 'string'],
+            'description' => ['required', 'string'],
+            'service_concerne' => ['nullable', 'string'],
+        ]);
+
+        $complaint = Complaint::create([
+            ...$data,
+            'patient_id' => $request->user()->id,
+            'statut' => 'ouverte',
+            'origin' => 'patient',
+        ])->refresh();
+
+        return (new ComplaintResource($complaint))->response()->setStatusCode(201);
     }
 
     /**

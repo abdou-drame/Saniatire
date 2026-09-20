@@ -63,7 +63,50 @@ function useInvalidateProducts() {
     queryClient.invalidateQueries({ queryKey: ["product-batches"] });
     queryClient.invalidateQueries({ queryKey: ["stock-movements"] });
     queryClient.invalidateQueries({ queryKey: ["stock-alerts"] });
+    queryClient.invalidateQueries({ queryKey: ["stock-thresholds"] });
   };
+}
+
+export interface CreateProductInput {
+  nom_commercial: string;
+  dci: string;
+  forme_galenique: string;
+  categorie: ProductCategorie;
+  unite_vente: string;
+  dosage?: string;
+  generic_catalog_ref?: string;
+}
+
+export function useCreateProduct() {
+  const invalidate = useInvalidateProducts();
+  return useMutation({
+    mutationFn: async (input: CreateProductInput) => {
+      const { data } = await api.post<{ data: Product }>("/products", input);
+      return data.data;
+    },
+    onSuccess: invalidate,
+  });
+}
+
+export interface CreateProductBatchInput {
+  product_id: number;
+  site_id: number;
+  numero_lot: string;
+  date_peremption: string;
+  quantite_stock: number;
+  prix_achat_unitaire: number;
+  supplier_id?: number;
+}
+
+export function useCreateProductBatch() {
+  const invalidate = useInvalidateProducts();
+  return useMutation({
+    mutationFn: async (input: CreateProductBatchInput) => {
+      const { data } = await api.post<{ data: ProductBatch }>("/product-batches", input);
+      return data.data;
+    },
+    onSuccess: invalidate,
+  });
 }
 
 export interface CreateStockMovementInput {
@@ -100,13 +143,16 @@ export function useStockMovements(filters: { productBatchId?: number; type?: Sto
   });
 }
 
-export function useStockThresholds() {
+export function useStockThresholds(filters: { productId?: number; siteId?: number; enabled?: boolean } = {}) {
   return useQuery({
-    queryKey: ["stock-thresholds"],
+    queryKey: ["stock-thresholds", filters],
     queryFn: async () => {
-      const { data } = await api.get<Paginated<StockThreshold>>("/stock-thresholds");
+      const { data } = await api.get<Paginated<StockThreshold>>("/stock-thresholds", {
+        params: { product_id: filters.productId, site_id: filters.siteId },
+      });
       return data;
     },
+    enabled: filters.enabled ?? true,
   });
 }
 
@@ -121,6 +167,17 @@ export function useCreateStockThreshold() {
   return useMutation({
     mutationFn: async (input: CreateStockThresholdInput) => {
       const { data } = await api.post<{ data: StockThreshold }>("/stock-thresholds", input);
+      return data.data;
+    },
+    onSuccess: invalidate,
+  });
+}
+
+export function useUpdateStockThreshold() {
+  const invalidate = useInvalidateProducts();
+  return useMutation({
+    mutationFn: async ({ id, seuil_minimum }: { id: number; seuil_minimum: number }) => {
+      const { data } = await api.patch<{ data: StockThreshold }>(`/stock-thresholds/${id}`, { seuil_minimum });
       return data.data;
     },
     onSuccess: invalidate,

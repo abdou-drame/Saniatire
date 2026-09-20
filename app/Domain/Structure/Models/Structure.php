@@ -61,6 +61,11 @@ class Structure extends Model
         return $this->hasMany(Patient::class);
     }
 
+    public function modules(): HasMany
+    {
+        return $this->hasMany(StructureModule::class);
+    }
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()

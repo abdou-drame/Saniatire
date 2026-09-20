@@ -17,8 +17,7 @@ class WardController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('permission:hospitalisation.view', only: ['index', 'show', 'occupancyStats']),
-            new Middleware('permission:hospitalisation.create', only: ['store']),
-            new Middleware('permission:hospitalisation.update', only: ['update']),
+            new Middleware('permission:hospitalisation.wards_manage', only: ['store', 'update']),
         ];
     }
 

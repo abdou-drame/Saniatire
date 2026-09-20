@@ -300,6 +300,23 @@ class Step4aSpecialtiesTest extends TestCase
         ])->assertForbidden();
     }
 
+    public function test_administrateur_without_a_personal_site_can_create_a_dental_chart_by_specifying_the_site(): void
+    {
+        // Même régression que Step3HospitalisationTest / Step3ImagerieTest /
+        // Step3LaboratoireTest, transposée aux dossiers de spécialité : un
+        // administrateur n'a délibérément aucun site de rattachement
+        // personnel. Le backend a toujours accepté un site_id explicite ;
+        // seul le frontend bloquait faute de site "par défaut" à proposer.
+        $administrateurA = User::factory()->for($this->structureA)->create();
+        $administrateurA->assignRole('administrateur');
+
+        $this->assertSame(0, $administrateurA->sites()->count());
+
+        $chart = $this->createDentalChart($administrateurA);
+
+        $this->assertSame($this->siteA->id, $chart['site_id']);
+    }
+
     public function test_a_dental_chart_is_invisible_to_another_structure(): void
     {
         $chart = $this->createDentalChart();

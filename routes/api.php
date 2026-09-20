@@ -61,6 +61,10 @@ use App\Http\Controllers\Api\PatientReferralController;
 use App\Http\Controllers\Api\PatientSatisfactionSurveyController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\PediatricRecordController;
+use App\Http\Controllers\Api\Platform\PlatformAuditLogController;
+use App\Http\Controllers\Api\Platform\PlatformAuthController;
+use App\Http\Controllers\Api\Platform\PlatformStructureController;
+use App\Http\Controllers\Api\Platform\StructureModuleController as PlatformStructureModuleController;
 use App\Http\Controllers\Api\PmaRecordController;
 use App\Http\Controllers\Api\PractitionerController;
 use App\Http\Controllers\Api\PrescriberPortalAuthController;
@@ -116,11 +120,16 @@ Route::middleware(['auth:patient', 'tenant:patient'])->prefix('portail-patient')
     Route::get('/rendez-vous', [PatientPortalController::class, 'appointments']);
     Route::get('/creneaux-disponibles', [PatientPortalController::class, 'creneauxDisponibles']);
     Route::post('/rendez-vous', [PatientPortalController::class, 'storeAppointment']);
+    Route::post('/rendez-vous/{appointment}/annuler', [PatientPortalController::class, 'cancelAppointment']);
 
     Route::get('/factures', [PatientPortalController::class, 'invoices']);
     Route::get('/factures/{invoice}', [PatientPortalController::class, 'invoice']);
     Route::get('/solde', [PatientPortalController::class, 'solde']);
     Route::get('/documents', [PatientPortalController::class, 'documents']);
+
+    Route::get('/reclamations', [PatientPortalController::class, 'complaints']);
+    Route::get('/reclamations/{complaint}', [PatientPortalController::class, 'complaint']);
+    Route::post('/reclamations', [PatientPortalController::class, 'storeComplaint']);
 
     Route::get('/preferences-notification', [NotificationPreferenceController::class, 'show']);
     Route::put('/preferences-notification', [NotificationPreferenceController::class, 'update']);
@@ -152,19 +161,65 @@ Route::middleware(['auth:prescriber', 'tenant:prescriber'])->prefix('portail-pre
 // accessibles à un utilisateur dont la 2FA obligatoire n'est pas encore
 // confirmée, sinon il ne pourrait jamais l'activer. Voir
 // EnsureTwoFactorSetupComplete pour le détail du blocage appliqué au
-// groupe suivant.
+// groupe suivant. /auth/change-password suit le même besoin : un compte
+// avec must_change_password doit pouvoir changer son mot de passe avant
+// que `password_change` ne bloque tout le reste (EnsureNoPendingPasswordChange).
 Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/me', [AuthController::class, 'me']);
+    Route::post('/auth/change-password', [AuthController::class, 'changePassword']);
 
     Route::post('/auth/2fa/setup', [TwoFactorController::class, 'setup']);
     Route::post('/auth/2fa/confirm', [TwoFactorController::class, 'confirm']);
     Route::post('/auth/2fa/disable', [TwoFactorController::class, 'disable']);
 });
 
-Route::middleware(['auth:sanctum', 'tenant', 'two_factor'])->group(function () {
-    Route::apiResource('structures', StructureController::class);
+// --- Administration plateforme (guard `platform`) ---
+//
+// Isolation structurelle : PlatformAdmin n'a pas de structure_id et ce
+// guard ne partage aucun provider avec sanctum/patient/prescriber — un
+// token de ce guard ne peut donc physiquement pas authentifier les routes
+// ci-dessus, et réciproquement. Pas de middleware `tenant` (abort 403 sans
+// structure_id) ni `two_factor`/`password_change` (propres au guard `users`).
+// Compte unique créé via `php artisan platform:create-admin`, jamais de
+// formulaire d'inscription public.
+Route::post('/platform/login', [PlatformAuthController::class, 'login']);
+
+Route::middleware('auth:platform')->prefix('platform')->group(function () {
+    Route::post('/logout', [PlatformAuthController::class, 'logout']);
+    Route::get('/me', [PlatformAuthController::class, 'me']);
+
+    Route::get('/structures', [PlatformStructureController::class, 'index']);
+    Route::post('/structures', [PlatformStructureController::class, 'store']);
+    Route::get('/structures/{structure}', [PlatformStructureController::class, 'show']);
+    Route::patch('/structures/{structure}', [PlatformStructureController::class, 'update']);
+    Route::post('/structures/{structure}/activate', [PlatformStructureController::class, 'activate']);
+    Route::post('/structures/{structure}/deactivate', [PlatformStructureController::class, 'deactivate']);
+
+    Route::get('/structures/{structure}/modules', [PlatformStructureModuleController::class, 'index']);
+    Route::patch('/structures/{structure}/modules/{module}', [PlatformStructureModuleController::class, 'update']);
+
+    Route::get('/audit-logs', [PlatformAuditLogController::class, 'index']);
+});
+
+Route::middleware(['auth:sanctum', 'tenant', 'two_factor', 'password_change'])->group(function () {
+    // Étape 15 : doit être déclarée avant l'apiResource ci-dessous — le
+    // paramètre {structure} de sa route `show` matche n'importe quel
+    // segment, donc /structures/directory serait intercepté par `show`
+    // (et gardé sur structures.view au lieu de referrals.create) si
+    // enregistrée après. Voir StructureController::directory() ; utilisée
+    // par le picker de destination du bloc patient-referrals plus bas.
+    Route::get('/structures/directory', [StructureController::class, 'directory']);
+    // Étape Administration plateforme : store() retiré — seule
+    // PlatformStructureController::store() (guard `platform`) peut créer
+    // une structure, voir bloc /platform/* ci-dessus. Faille fermée :
+    // aucun rôle de structure ne doit pouvoir créer une structure.
+    Route::apiResource('structures', StructureController::class)->except(['store']);
     Route::apiResource('sites', SiteController::class);
+    // Doit être déclarée avant apiResource('users', ...) : sinon la route
+    // show ({user}) intercepterait /users/roles en tentant de résoudre un
+    // User d'id "roles". Même patron que /structures/directory ci-dessus.
+    Route::get('/users/roles', [UserController::class, 'roles']);
     Route::apiResource('users', UserController::class);
 
     Route::apiResource('patients', PatientController::class);

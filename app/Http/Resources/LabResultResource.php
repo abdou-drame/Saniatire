@@ -20,8 +20,12 @@ class LabResultResource extends JsonResource
             'interpretation' => $this->interpretation,
             'status' => $this->status,
             'technical_validated_by' => $this->technical_validated_by,
+            'technical_validator_label' => $this->whenLoaded('technicalValidator', fn () => $this->technicalValidator ? trim("{$this->technicalValidator->first_name} {$this->technicalValidator->last_name}") : null),
+            'technical_validator_role' => $this->whenLoaded('technicalValidator', fn () => $this->technicalValidator?->getRoleNames()->first()),
             'technical_validated_at' => $this->technical_validated_at,
             'biological_validated_by' => $this->biological_validated_by,
+            'biological_validator_label' => $this->whenLoaded('biologicalValidator', fn () => $this->biologicalValidator ? trim("{$this->biologicalValidator->first_name} {$this->biologicalValidator->last_name}") : null),
+            'biological_validator_role' => $this->whenLoaded('biologicalValidator', fn () => $this->biologicalValidator?->getRoleNames()->first()),
             'biological_validated_at' => $this->biological_validated_at,
             'created_at' => $this->created_at,
         ];

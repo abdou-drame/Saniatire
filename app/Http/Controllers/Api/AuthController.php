@@ -70,7 +70,7 @@ class AuthController extends Controller
 
         return response()->json([
             'token' => $token,
-            'user' => new UserResource($user->load('roles')),
+            'user' => new UserResource($user->load('roles', 'sites', 'structure')),
             // Rôle à 2FA obligatoire mais pas encore activée : le frontend
             // doit rediriger vers /auth/2fa/setup. EnsureTwoFactorSetupComplete
             // bloque déjà tout le reste de l'API tant que ce n'est pas fait.
@@ -87,7 +87,31 @@ class AuthController extends Controller
 
     public function me(Request $request): UserResource
     {
-        return new UserResource($request->user()->load('roles', 'sites'));
+        return new UserResource($request->user()->load('roles', 'sites', 'structure'));
+    }
+
+    /**
+     * Administration plateforme : le premier administrateur d'une structure
+     * reçoit un mot de passe généré, jamais choisi par le platform admin —
+     * EnsureNoPendingPasswordChange bloque tout le reste de l'API tant que
+     * ce compte n'est pas passé par ici. Contrairement à resetPassword()
+     * (token e-mail, mot de passe oublié), l'identité est déjà prouvée par
+     * le token d'authentification courant : pas de mot de passe actuel
+     * demandé, la temporaire n'a de toute façon jamais été choisie par
+     * l'utilisateur.
+     */
+    public function changePassword(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $request->user()->forceFill([
+            'password' => Hash::make($data['password']),
+            'must_change_password' => false,
+        ])->save();
+
+        return response()->json(['message' => 'Mot de passe changé.']);
     }
 
     public function forgotPassword(Request $request): JsonResponse

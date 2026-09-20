@@ -26,7 +26,13 @@ export function DiagnosisPicker({
       }),
     onSuccess: () => {
       setError(null);
-      queryClient.invalidateQueries({ queryKey: ["consultations", consultationId] });
+      // Prefix-only invalidation: this component is fed by several different
+      // consultation queries depending on the screen (e.g. useOpenConsultation's
+      // ["consultations", "open", patientId, userId] on the general consultation
+      // form vs. SpecialtyDiagnosisCard's own ["consultations", consultationId]).
+      // Invalidating just ["consultations", consultationId] silently missed the
+      // former, so the POST succeeded but the UI never refreshed.
+      queryClient.invalidateQueries({ queryKey: ["consultations"] });
     },
     onError: (err) => setError(apiErrorMessage(err)),
   });

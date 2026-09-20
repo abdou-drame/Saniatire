@@ -5,6 +5,9 @@ namespace Tests\Feature;
 use App\Domain\Achats\Models\ApprovalRule;
 use App\Domain\Achats\Models\Supplier;
 use App\Domain\Biomedical\Models\BiomedicalEquipment;
+use App\Domain\Consultation\Models\Consultation;
+use App\Domain\Facturation\Models\BillableItem;
+use App\Domain\Patient\Models\Patient;
 use App\Domain\Pharmacie\Models\Product;
 use App\Domain\Pharmacie\Models\ProductBatch;
 use App\Domain\Pharmacie\Models\StockThreshold;
@@ -369,6 +372,85 @@ class Step5aLogisticsTest extends TestCase
             ->assertNotFound();
     }
 
+    // --- Création de produits et de lots (catalogue pharmacie) ----------------
+
+    public function test_a_product_and_its_batch_can_be_created_and_the_batch_appears_in_stock_movement_selection(): void
+    {
+        $product = $this->actingAs($this->gestionnaireStockA)->postJson('/api/products', [
+            'nom_commercial' => 'Doliprane 500mg',
+            'dci' => 'Paracétamol',
+            'forme_galenique' => 'Comprimé',
+            'dosage' => '500mg',
+            'categorie' => 'medicament',
+            'unite_vente' => 'Boîte',
+        ])->assertCreated()->json('data');
+
+        $batch = $this->actingAs($this->gestionnaireStockA)->postJson('/api/product-batches', [
+            'product_id' => $product['id'],
+            'site_id' => $this->siteA->id,
+            'numero_lot' => 'LOT-CATALOGUE-1',
+            'date_peremption' => now()->addYear()->toDateString(),
+            'quantite_stock' => 100,
+            'prix_achat_unitaire' => 250,
+        ])->assertCreated()->json('data');
+
+        $batchIds = collect(
+            $this->actingAs($this->gestionnaireStockA)
+                ->getJson("/api/product-batches?product_id={$product['id']}")
+                ->assertOk()
+                ->json('data')
+        )->pluck('id');
+        $this->assertTrue($batchIds->contains($batch['id']));
+
+        $this->actingAs($this->pharmacienA)->postJson('/api/stock-movements', [
+            'product_batch_id' => $batch['id'],
+            'site_id' => $this->siteA->id,
+            'type' => 'entree',
+            'quantite' => 20,
+        ])->assertCreated();
+
+        $this->assertSame(120, ProductBatch::find($batch['id'])->quantite_stock);
+    }
+
+    public function test_a_pharmacien_cannot_create_a_product(): void
+    {
+        $this->actingAs($this->pharmacienA)->postJson('/api/products', [
+            'nom_commercial' => 'Amoxicilline 500mg',
+            'dci' => 'Amoxicilline',
+            'forme_galenique' => 'Gélule',
+            'categorie' => 'medicament',
+            'unite_vente' => 'Boîte',
+        ])->assertStatus(403);
+    }
+
+    public function test_a_product_and_batch_created_by_one_structure_are_isolated_from_another(): void
+    {
+        $product = $this->actingAs($this->gestionnaireStockA)->postJson('/api/products', [
+            'nom_commercial' => 'Ibuprofène 400mg',
+            'dci' => 'Ibuprofène',
+            'forme_galenique' => 'Comprimé',
+            'categorie' => 'medicament',
+            'unite_vente' => 'Boîte',
+        ])->assertCreated()->json('data');
+
+        $batch = $this->actingAs($this->gestionnaireStockA)->postJson('/api/product-batches', [
+            'product_id' => $product['id'],
+            'site_id' => $this->siteA->id,
+            'numero_lot' => 'LOT-ISOLATION-1',
+            'date_peremption' => now()->addYear()->toDateString(),
+            'quantite_stock' => 10,
+            'prix_achat_unitaire' => 100,
+        ])->assertCreated()->json('data');
+
+        $this->actingAs($this->gestionnaireStockB)
+            ->getJson("/api/products/{$product['id']}")
+            ->assertNotFound();
+
+        $this->actingAs($this->gestionnaireStockB)
+            ->getJson("/api/product-batches/{$batch['id']}")
+            ->assertNotFound();
+    }
+
     public function test_a_purchase_order_is_invisible_to_another_structure(): void
     {
         $order = $this->createOrder($this->achatsA, $this->structureA, $this->siteA, 100, 10);
@@ -443,5 +525,228 @@ class Step5aLogisticsTest extends TestCase
         $this->actingAs($userB)
             ->getJson("/api/equipment-maintenances/{$maintenance->id}")
             ->assertNotFound();
+    }
+
+    // --- Grille tarifaire configurable par structure (écran ajouté) -----------
+
+    public function test_a_service_tariff_created_via_api_is_correctly_used_when_billing_a_consultation_and_generating_an_invoice(): void
+    {
+        $comptableA = User::factory()->for($this->structureA)->create();
+        $comptableA->assignRole('comptable');
+
+        $administrateurA = User::factory()->for($this->structureA)->create();
+        $administrateurA->assignRole('administrateur');
+
+        $tariff = $this->actingAs($comptableA)->postJson('/api/service-tariffs', [
+            'code' => 'CONSULTATION_GENERALE',
+            'libelle' => 'Consultation générale',
+            'categorie' => 'consultation',
+            'prix_unitaire' => 5000,
+        ])->assertCreated()->json('data');
+        $this->assertTrue($tariff['actif']);
+
+        $patient = Patient::factory()->for($this->structureA)->create();
+        $consultation = Consultation::factory()->for($this->structureA)->create([
+            'patient_id' => $patient->id,
+            'status' => 'en_cours',
+        ]);
+
+        // La clôture de la consultation déclenche BillingService::recordService(),
+        // qui doit résoudre exactement le tarif créé via l'écran ci-dessus.
+        $this->actingAs($administrateurA)
+            ->postJson("/api/consultations/{$consultation->id}/close")
+            ->assertOk();
+
+        $this->assertDatabaseHas('billable_items', [
+            'patient_id' => $patient->id,
+            'billable_type' => Consultation::class,
+            'billable_id' => $consultation->id,
+            'code_prestation' => 'CONSULTATION_GENERALE',
+            'prix_unitaire' => 5000,
+            'montant_total' => 5000,
+            'statut' => 'a_facturer',
+        ]);
+
+        $billableItem = BillableItem::where('billable_id', $consultation->id)->firstOrFail();
+
+        $invoice = $this->actingAs($administrateurA)->postJson('/api/invoices', [
+            'patient_id' => $patient->id,
+            'site_id' => $this->siteA->id,
+            'billable_item_ids' => [$billableItem->id],
+        ])->assertCreated()->json('data');
+
+        $this->assertSame(5000.0, (float) $invoice['montant_total']);
+        $this->assertSame(5000.0, (float) $invoice['montant_part_patient']);
+        $this->assertSame(0.0, (float) $invoice['montant_part_assurance']);
+    }
+
+    public function test_an_act_closed_without_a_configured_tariff_still_generates_a_billing_line_marked_a_tarifer(): void
+    {
+        $administrateurA = User::factory()->for($this->structureA)->create();
+        $administrateurA->assignRole('administrateur');
+
+        $patient = Patient::factory()->for($this->structureA)->create();
+        $consultation = Consultation::factory()->for($this->structureA)->create([
+            'patient_id' => $patient->id,
+            'status' => 'en_cours',
+        ]);
+
+        // Aucun ServiceTariff actif n'existe pour CONSULTATION_GENERALE dans structureA :
+        // la clôture ne doit jamais rester silencieuse pour autant.
+        $this->actingAs($administrateurA)
+            ->postJson("/api/consultations/{$consultation->id}/close")
+            ->assertOk();
+
+        $this->assertDatabaseHas('billable_items', [
+            'patient_id' => $patient->id,
+            'billable_type' => Consultation::class,
+            'billable_id' => $consultation->id,
+            'code_prestation' => 'CONSULTATION_GENERALE',
+            'prix_unitaire' => 0,
+            'montant_total' => 0,
+            'statut' => 'a_tarifer',
+        ]);
+
+        $billableItem = BillableItem::where('billable_id', $consultation->id)->firstOrFail();
+
+        // Une ligne "à tarifer" n'est jamais facturable tant qu'aucun tarif n'existe.
+        $this->actingAs($administrateurA)->postJson('/api/invoices', [
+            'patient_id' => $patient->id,
+            'site_id' => $this->siteA->id,
+            'billable_item_ids' => [$billableItem->id],
+        ])->assertStatus(422)
+            ->assertJsonFragment(['message' => 'Certaines prestations sont introuvables ou déjà facturées.']);
+    }
+
+    public function test_a_caissier_cannot_create_a_service_tariff(): void
+    {
+        $caissierA = User::factory()->for($this->structureA)->create();
+        $caissierA->assignRole('caissier');
+
+        $this->actingAs($caissierA)->postJson('/api/service-tariffs', [
+            'code' => 'CONSULTATION_GENERALE',
+            'libelle' => 'Consultation générale',
+            'categorie' => 'consultation',
+            'prix_unitaire' => 5000,
+        ])->assertStatus(403);
+    }
+
+    public function test_a_service_tariff_created_via_the_api_is_isolated_from_another_structure(): void
+    {
+        $comptableA = User::factory()->for($this->structureA)->create();
+        $comptableA->assignRole('comptable');
+
+        $tariff = $this->actingAs($comptableA)->postJson('/api/service-tariffs', [
+            'code' => 'LABORATOIRE_ANALYSE',
+            'libelle' => 'Analyse de laboratoire',
+            'categorie' => 'laboratoire',
+            'prix_unitaire' => 3000,
+        ])->assertCreated()->json('data');
+
+        $this->actingAs($this->directionB)
+            ->getJson("/api/service-tariffs/{$tariff['id']}")
+            ->assertNotFound();
+    }
+
+    // --- Règles d'approbation configurables via l'API (écran ajouté) ----------
+
+    public function test_an_approval_rule_created_via_api_is_immediately_enforced_on_purchase_order_validation(): void
+    {
+        $this->actingAs($this->achatsA)->postJson('/api/approval-rules', [
+            'level' => 1,
+            'min_amount' => 800,
+            'role_name' => 'gestionnaire_stock',
+        ])->assertCreated();
+
+        $order = $this->createOrder($this->achatsA, $this->structureA, $this->siteA, 100, 10);
+        $this->assertSame(1000.0, (float) $order['montant_total']);
+
+        $order = $this->actingAs($this->achatsA)
+            ->postJson("/api/purchase-orders/{$order['id']}/submit")
+            ->assertOk()
+            ->json('data');
+        $this->assertSame('en_attente_validation', $order['statut']);
+        $this->assertSame('gestionnaire_stock', $order['approvals'][0]['role_name']);
+
+        $this->actingAs($this->directionA)
+            ->postJson("/api/purchase-orders/{$order['id']}/approve")
+            ->assertStatus(403);
+
+        $this->actingAs($this->gestionnaireStockA)
+            ->postJson("/api/purchase-orders/{$order['id']}/approve")
+            ->assertOk()
+            ->assertJsonPath('data.statut', 'validee');
+    }
+
+    public function test_a_direction_user_cannot_create_an_approval_rule(): void
+    {
+        $this->actingAs($this->directionA)->postJson('/api/approval-rules', [
+            'level' => 1,
+            'min_amount' => 800,
+            'role_name' => 'gestionnaire_stock',
+        ])->assertStatus(403);
+    }
+
+    public function test_an_approval_rule_created_via_the_api_is_isolated_from_another_structure(): void
+    {
+        $rule = $this->actingAs($this->achatsA)->postJson('/api/approval-rules', [
+            'level' => 1,
+            'min_amount' => 800,
+            'role_name' => 'gestionnaire_stock',
+        ])->assertCreated()->json('data');
+
+        $this->actingAs($this->achatsB)
+            ->getJson("/api/approval-rules/{$rule['id']}")
+            ->assertNotFound();
+    }
+
+    // --- Configuration du seuil d'alerte via l'API (écran manquant corrigé) --------------
+
+    public function test_a_stock_threshold_configured_via_api_makes_a_product_appear_in_the_low_threshold_alert(): void
+    {
+        $product = Product::factory()->for($this->structureA)->create();
+        ProductBatch::factory()->for($this->structureA)->create([
+            'product_id' => $product->id,
+            'site_id' => $this->siteA->id,
+            'quantite_stock' => 6,
+        ]);
+
+        $threshold = $this->actingAs($this->gestionnaireStockA)->postJson('/api/stock-thresholds', [
+            'product_id' => $product->id,
+            'site_id' => $this->siteA->id,
+            'seuil_minimum' => 10,
+        ])->assertCreated()->json('data');
+
+        $this->assertSame(10, $threshold['seuil_minimum']);
+
+        $alerts = $this->actingAs($this->gestionnaireStockA)
+            ->getJson('/api/stock/alerts/low-threshold?site_id='.$this->siteA->id)
+            ->assertOk()
+            ->json('data');
+
+        $alert = collect($alerts)->firstWhere('product_id', $product->id);
+        $this->assertNotNull($alert, 'Le produit sous son seuil doit apparaître dans les alertes.');
+        $this->assertSame(10, $alert['seuil_minimum']);
+        $this->assertSame(6, $alert['stock_actuel']);
+
+        // Le filtre product_id de GET /stock-thresholds (ajouté pour l'écran de configuration)
+        // doit permettre de retrouver ce seuil précis sans le mélanger à ceux d'autres produits.
+        $listed = $this->actingAs($this->gestionnaireStockA)
+            ->getJson('/api/stock-thresholds?product_id='.$product->id)
+            ->assertOk()
+            ->json('data');
+        $this->assertCount(1, $listed);
+        $this->assertSame($threshold['id'], $listed[0]['id']);
+    }
+
+    public function test_a_pharmacien_cannot_configure_a_stock_threshold(): void
+    {
+        $product = Product::factory()->for($this->structureA)->create();
+
+        $this->actingAs($this->pharmacienA)->postJson('/api/stock-thresholds', [
+            'product_id' => $product->id,
+            'site_id' => $this->siteA->id,
+            'seuil_minimum' => 10,
+        ])->assertStatus(403);
     }
 }

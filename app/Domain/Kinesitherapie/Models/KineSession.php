@@ -57,6 +57,11 @@ class KineSession extends Model implements Billable
         return $this->program->patient_id;
     }
 
+    public function billingStructureId(): int
+    {
+        return $this->program->structure_id;
+    }
+
     public function billingCategorie(): string
     {
         return 'kinesitherapie';

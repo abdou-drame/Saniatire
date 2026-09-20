@@ -74,7 +74,8 @@ class LabOrderController extends Controller implements HasMiddleware
             'requester',
             'site:id,name',
             'items.loincCode',
-            'items.result',
+            'items.result.technicalValidator',
+            'items.result.biologicalValidator',
             'samples.results',
         ]));
     }

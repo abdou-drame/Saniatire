@@ -20,6 +20,13 @@ class QuoteResource extends JsonResource
             'date_emission' => $this->date_emission,
             'montant_total' => $this->montant_total,
             'statut' => $this->statut,
+            'patient' => $this->whenLoaded('patient', fn () => $this->patient ? [
+                'id' => $this->patient->id,
+                'first_name' => $this->patient->first_name,
+                'last_name' => $this->patient->last_name,
+                'patient_number' => $this->patient->patient_number,
+            ] : null),
+            'site' => $this->whenLoaded('site', fn () => $this->site ? ['id' => $this->site->id, 'name' => $this->site->name] : null),
             'items' => QuoteItemResource::collection($this->whenLoaded('items')),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

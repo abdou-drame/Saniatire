@@ -25,7 +25,7 @@ class UserRequest extends FormRequest
             'password' => [$isCreate ? 'required' : 'nullable', 'string', 'min:8'],
             'is_active' => ['boolean'],
             'role' => ['required', 'string', Rule::exists('roles', 'name')],
-            'site_ids' => ['nullable', 'array'],
+            'site_ids' => [$isCreate ? 'required' : 'sometimes', 'array', 'min:1'],
             'site_ids.*' => ['integer', Rule::exists('sites', 'id')],
         ];
     }

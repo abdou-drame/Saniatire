@@ -25,7 +25,9 @@ class PatientInsuranceCoverageController extends Controller implements HasMiddle
 
     public function index(Request $request): JsonResponse
     {
-        $query = PatientInsuranceCoverage::query()->orderByDesc('id');
+        $query = PatientInsuranceCoverage::query()
+            ->with(['patient:id,first_name,last_name,patient_number', 'convention.provider'])
+            ->orderByDesc('id');
 
         if ($request->filled('patient_id')) {
             $query->where('patient_id', $request->integer('patient_id'));
@@ -43,7 +45,7 @@ class PatientInsuranceCoverageController extends Controller implements HasMiddle
 
     public function show(PatientInsuranceCoverage $patientInsuranceCoverage): PatientInsuranceCoverageResource
     {
-        return new PatientInsuranceCoverageResource($patientInsuranceCoverage);
+        return new PatientInsuranceCoverageResource($patientInsuranceCoverage->load(['patient:id,first_name,last_name,patient_number', 'convention.provider']));
     }
 
     public function update(PatientInsuranceCoverageRequest $request, PatientInsuranceCoverage $patientInsuranceCoverage): PatientInsuranceCoverageResource

@@ -1,4 +1,4 @@
-import { Activity, CalendarDays, FileText, LogOut, Receipt, Settings } from "lucide-react";
+import { Activity, CalendarDays, FileText, LogOut, MessageSquareWarning, Receipt, Settings } from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { usePatientAuth } from "@/hooks/use-patient-auth";
 import { cn } from "@/lib/utils";
@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { href: "/portail/rendez-vous", label: "Mes rendez-vous", icon: CalendarDays },
   { href: "/portail/documents", label: "Mes documents", icon: FileText },
   { href: "/portail/factures", label: "Mes factures", icon: Receipt },
+  { href: "/portail/reclamations", label: "Mes réclamations", icon: MessageSquareWarning },
   { href: "/portail/preferences", label: "Mes préférences", icon: Settings },
 ];
 

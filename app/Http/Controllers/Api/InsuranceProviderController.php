@@ -24,7 +24,9 @@ class InsuranceProviderController extends Controller implements HasMiddleware
 
     public function index(): JsonResponse
     {
-        return InsuranceProviderResource::collection(InsuranceProvider::query()->orderBy('nom')->paginate())->response();
+        return InsuranceProviderResource::collection(
+            InsuranceProvider::query()->with('conventions.coverageRules')->orderBy('nom')->paginate()
+        )->response();
     }
 
     public function store(InsuranceProviderRequest $request): JsonResponse

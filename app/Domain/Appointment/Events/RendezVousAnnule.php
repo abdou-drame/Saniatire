@@ -7,8 +7,10 @@ use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
 /**
- * Dispatched only — no listener yet. Will be wired to the notifications
- * module (cahier des charges §69) to trigger SMS/email confirmations.
+ * Handled by SendRendezVousAnnuleNotification (registered in
+ * AppServiceProvider), regardless of which code path dispatches it
+ * (staff-side AppointmentController::cancel() or the patient portal's
+ * PatientPortalController::cancelAppointment()).
  */
 class RendezVousAnnule
 {
