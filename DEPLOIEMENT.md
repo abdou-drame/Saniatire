@@ -66,7 +66,7 @@ APP_FAKER_LOCALE=fr_FR
 # ── Base de données PostgreSQL (valeurs fournies par Dokploy) ─────
 DB_CONNECTION=pgsql
 DB_HOST=                          # ← récupérer dans Dokploy > sanitaire-db > Connection > Host
-DB_PORT=5432
+`DB_PORT=5432`
 DB_DATABASE=                      # ← récupérer dans Dokploy > sanitaire-db > Connection > Database
 DB_USERNAME=                      # ← récupérer dans Dokploy > sanitaire-db > Connection > Username
 DB_PASSWORD=                      # ← récupérer dans Dokploy > sanitaire-db > Connection > Password

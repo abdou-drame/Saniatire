@@ -1,15 +1,22 @@
 # nixpacks.toml — Configuration Nixpacks pour le backend Laravel
-# Placé à la racine du dépôt (là où se trouve artisan, composer.json)
-# Dokploy lit ce fichier automatiquement lors du build Nixpacks.
 
 [phases.setup]
-nixPkgs = ["php82", "php82Extensions.pgsql", "php82Extensions.pdo_pgsql",
-           "php82Extensions.mbstring", "php82Extensions.xml",
-           "php82Extensions.bcmath", "php82Extensions.gd",
-           "php82Extensions.curl", "php82Extensions.zip",
-           "php82Extensions.tokenizer", "php82Extensions.ctype",
-           "php82Extensions.fileinfo", "php82Extensions.openssl",
-           "php82Extensions.intl"]
+nixPkgs = [
+  "php82",
+  "php82Extensions.pgsql",
+  "php82Extensions.pdo_pgsql",
+  "php82Extensions.mbstring",
+  "php82Extensions.xml",
+  "php82Extensions.bcmath",
+  "php82Extensions.gd",
+  "php82Extensions.curl",
+  "php82Extensions.zip",
+  "php82Extensions.tokenizer",
+  "php82Extensions.ctype",
+  "php82Extensions.fileinfo",
+  "php82Extensions.openssl",
+  "php82Extensions.intl"
+]
 
 [phases.install]
 cmds = [
@@ -20,23 +27,8 @@ cmds = [
 cmds = [
   "php artisan config:cache",
   "php artisan route:cache",
-  "php artisan view:cache",
-  "php artisan storage:link"
+  "php artisan view:cache"
 ]
 
-# Serveur de production : frankenphp (recommandé avec Nixpacks/Dokploy)
-# ou octane:frankenphp. Si frankenphp n'est pas disponible dans votre
-# image Nixpacks, Nginx + PHP-FPM est l'alternative — voir DEPLOIEMENT.md.
-# Pour un premier déploiement simple et fiable, on utilise php artisan
-# octane:start si laravel/octane est installé, sinon le serveur intégré
-# PHP sur le port 8080 (Dokploy redirige le trafic HTTP via son reverse proxy).
 [start]
 cmd = "php artisan serve --host=0.0.0.0 --port=8080"
-
-# NOTE : `php artisan serve` est acceptable derrière un reverse proxy
-# Dokploy/Caddy/Nginx qui gère TLS et la concurrence. Ce n'est pas
-# adapté à une exposition directe sous charge, mais pour ce premier
-# déploiement c'est la solution la plus simple et la plus compatible
-# avec Nixpacks sans configuration supplémentaire.
-# Pour monter en charge plus tard : installer laravel/octane et
-# changer cmd en "php artisan octane:frankenphp --host=0.0.0.0 --port=8080"
