@@ -9,7 +9,7 @@ nixPkgs = ["php82", "php82Extensions.pgsql", "php82Extensions.pdo_pgsql",
            "php82Extensions.curl", "php82Extensions.zip",
            "php82Extensions.tokenizer", "php82Extensions.ctype",
            "php82Extensions.fileinfo", "php82Extensions.openssl",
-           "php82Extensions.intl", "composer"]
+           "php82Extensions.intl"]
 
 [phases.install]
 cmds = [
