@@ -1,0 +1,24 @@
+# nixpacks.toml — Configuration Nixpacks pour le frontend React/Vite
+# Placé dans le dossier frontend/ (racine de l'app frontend dans Dokploy)
+
+[phases.setup]
+nixPkgs = ["nodejs_20"]
+
+[phases.install]
+cmds = ["npm ci"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+# Serveur statique : on utilise `vite preview` ou un petit serveur HTTP
+# pour servir le dossier dist/ et rediriger toutes les routes vers index.html
+# (nécessaire pour le routing côté client React Router).
+# Dokploy/Nixpacks détecte automatiquement un build Vite et peut servir
+# le dossier dist/ avec un serveur statique intégré.
+# Si Nixpacks ne le détecte pas automatiquement, on utilise `npx serve`
+# avec le flag de fallback SPA :
+[start]
+cmd = "npx serve dist --single --listen 8080"
+
+# --single : redirige toutes les routes non-trouvées vers index.html (SPA routing)
+# --listen 8080 : Dokploy s'attend à ce que l'app écoute sur ce port

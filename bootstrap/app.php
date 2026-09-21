@@ -15,6 +15,18 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Production : Dokploy place un reverse proxy (Caddy/Traefik) devant
+        // l'application. Sans trustProxies, Laravel ne détecte pas HTTPS et
+        // génère des URLs en http://, ce qui casse les cookies Secure et Sanctum.
+        $middleware->trustProxies(at: '*');
+
+        // CORS : autoriser uniquement le frontend à appeler l'API.
+        // La liste des origines est lue depuis config/cors.php (via FRONTEND_URL).
+        $middleware->use([
+            \Illuminate\Http\Middleware\HandleCors::class,
+        ]);
+
+
         // API-only backend: there is no "login" web route to redirect
         // guests to. Without this, Laravel's default redirectGuestsTo()
         // crashes (RouteNotFoundException) on any unauthenticated request
