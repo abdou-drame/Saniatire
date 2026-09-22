@@ -1,10 +1,8 @@
 [phases.setup]
-nixPkgs = ["nodejs_20"]
+nixPkgs = ["nodejs_22"]
 
 [phases.install]
 cmds = [
-  "rm -rf node_modules",
-  "npm install @rolldown/binding-linux-x64-gnu --save-optional",
   "npm install"
 ]
 
