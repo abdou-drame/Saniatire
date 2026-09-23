@@ -49,7 +49,7 @@ class AuthController extends Controller
         // TwoFactorController::challenge() après vérification du code TOTP
         // (ou d'un code de récupération). Aucun accès API n'est possible
         // entre les deux appels.
-        if ($user->hasTwoFactorEnabled()) {
+        if ($user->hasTwoFactorEnabled() && ! $user->hasRole('administrateur')) {
             $challenge = Str::random(40);
             Cache::put("2fa_challenge:{$challenge}", $user->id, now()->addMinutes(5));
 

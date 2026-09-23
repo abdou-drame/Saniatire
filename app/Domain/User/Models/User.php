@@ -45,8 +45,9 @@ class User extends Authenticatable
     ];
 
     /**
-     * Rôles pour lesquels la 2FA est obligatoire (étape 9 §2) : le niveau
-     * d'accès le plus large (administrateur, direction, directeur_medical)
+        * Rôles pour lesquels la 2FA est obligatoire (étape 9 §2) : les niveaux
+        * directionnels et cliniques sensibles, à l'exception de l'administrateur
+        * qui utilise une connexion sans 2FA.
      * et les seuls rôles cliniques atteignant les modules pma et
      * sante_mentale (voir RolePermissionSeeder — specialiste_pma,
      * psychiatre, psychologue sont les seuls rôles, avec directeur_medical,
@@ -54,7 +55,6 @@ class User extends Authenticatable
      * le middleware et les tests.
      */
     public const ROLES_REQUIRING_TWO_FACTOR = [
-        'administrateur',
         'direction',
         'directeur_medical',
         'specialiste_pma',
