@@ -265,7 +265,12 @@ export function LandingPage() {
               ))}
             </div>
 
-            <div className="mt-8 flex flex-col gap-4 rounded-lg border border-dashed border-border-strong bg-bg px-5 py-4 sm:flex-row sm:items-center">
+            {/* Tout le bandeau est le lien (pas seulement le bouton), sinon un
+                clic sur le texte ou l'icône ne déclenche aucune navigation. */}
+            <Link
+              to={LOGIN_ROUTES.platform}
+              className="group mt-8 flex flex-col gap-4 rounded-lg border border-dashed border-border-strong bg-bg px-5 py-4 transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent sm:flex-row sm:items-center"
+            >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border text-text-subtle">
                 <ShieldCheck size={18} />
               </span>
@@ -280,10 +285,10 @@ export function LandingPage() {
                   Réservé à l'équipe Sanitaire — supervision et activation des structures clientes.
                 </p>
               </div>
-              <Button asChild variant="ghost" size="sm" className="self-start sm:self-auto">
-                <Link to={LOGIN_ROUTES.platform}>Connexion administrateur</Link>
+              <Button asChild variant="ghost" size="sm" className="self-start group-hover:bg-surface-hover group-hover:text-text sm:self-auto">
+                <span>Connexion administrateur</span>
               </Button>
-            </div>
+            </Link>
           </div>
         </section>
 
