@@ -1,9 +1,10 @@
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
-import { LoaderCircle, LogIn } from "lucide-react";
+import { FlaskConical, LoaderCircle, LogIn, ShieldCheck } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { BRAND_NAME, BrandLogo } from "@/components/brand/brand-logo";
+import { AuthNotice, AuthSwitchLinks, EmailField, PasswordField } from "@/components/auth/auth-fields";
+import { AuthShell, authButtonClass } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
 import { usePatientAuth } from "@/hooks/use-patient-auth";
 import { patientApi } from "@/lib/patient-api";
@@ -47,73 +48,60 @@ export function PortalLoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-bg px-4">
-      <div className="w-full max-w-sm">
-        <div className="glow-accent relative mb-8 flex flex-col items-center gap-3 pb-2">
-          <BrandLogo className="relative h-[92px]" />
-          <div className="relative text-center">
-            <h1 className="sr-only">{BRAND_NAME}</h1>
-            <p className="text-sm text-text-muted">Espace patient</p>
-          </div>
+    <AuthShell
+      tone="patient"
+      tagline="Votre suivi médical, toujours à portée de main."
+      description="Rendez-vous, résultats de laboratoire et d'imagerie, documents médicaux — consultez tout, où que vous soyez, en toute confidentialité."
+      points={[
+        { icon: ShieldCheck, label: "Vos données restent strictement confidentielles" },
+        { icon: FlaskConical, label: "Résultats transmis uniquement une fois validés" },
+      ]}
+      title="Espace patient"
+      subtitle="Connectez-vous pour accéder à votre suivi."
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <EmailField
+          id="email"
+          label="Adresse e-mail"
+          required
+          autoComplete="username"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="vous@exemple.com"
+        />
+
+        <PasswordField
+          id="password"
+          label="Mot de passe"
+          required
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="••••••••"
+        />
+
+        <div className="text-right text-xs">
+          <Link to="/portail/mot-de-passe-oublie" className="text-text-muted hover:text-accent-light">
+            Mot de passe oublié ?
+          </Link>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-4 rounded-lg border border-border bg-surface p-6 shadow-[var(--shadow-card)]"
-        >
-          <div className="space-y-1.5">
-            <label htmlFor="email" className="text-xs font-medium text-text-muted">
-              Adresse e-mail
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              autoComplete="username"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="h-10 w-full rounded-md border border-border bg-bg px-3 text-sm text-text placeholder:text-text-subtle focus:border-border-strong focus:outline-none focus:ring-1 focus:ring-accent"
-              placeholder="vous@exemple.com"
-            />
-          </div>
+        {(location.state?.notice || notice) && <AuthNotice>{notice ?? location.state?.notice}</AuthNotice>}
 
-          <div className="space-y-1.5">
-            <label htmlFor="password" className="text-xs font-medium text-text-muted">
-              Mot de passe
-            </label>
-            <input
-              id="password"
-              type="password"
-              required
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="h-10 w-full rounded-md border border-border bg-bg px-3 text-sm text-text placeholder:text-text-subtle focus:border-border-strong focus:outline-none focus:ring-1 focus:ring-accent"
-              placeholder="••••••••"
-            />
-          </div>
+        <Button type="submit" size="lg" className={authButtonClass("patient")} disabled={mutation.isPending}>
+          {mutation.isPending ? <LoaderCircle size={16} className="animate-spin" /> : <LogIn size={16} />}
+          Se connecter
+        </Button>
 
-          {(location.state?.notice || notice) && (
-            <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
-              {notice ?? location.state?.notice}
-            </p>
-          )}
+        <p className="text-center text-xs text-text-muted">
+          Première connexion ?{" "}
+          <Link to="/portail/activer" className="text-accent-light hover:underline">
+            Activer mon compte
+          </Link>
+        </p>
+      </form>
 
-          <Button type="submit" className="w-full" disabled={mutation.isPending}>
-            {mutation.isPending ? <LoaderCircle size={16} className="animate-spin" /> : <LogIn size={16} />}
-            Se connecter
-          </Button>
-
-          <div className="flex items-center justify-between pt-1 text-xs">
-            <Link to="/portail/mot-de-passe-oublie" className="text-text-muted hover:text-accent-light">
-              Mot de passe oublié ?
-            </Link>
-            <Link to="/portail/activer" className="text-text-muted hover:text-accent-light">
-              Activer mon compte
-            </Link>
-          </div>
-        </form>
-      </div>
-    </div>
+      <AuthSwitchLinks links={[{ to: "/login", label: "Vous êtes un professionnel de santé ?" }]} />
+    </AuthShell>
   );
 }

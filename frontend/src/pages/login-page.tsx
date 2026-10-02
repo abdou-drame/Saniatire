@@ -1,9 +1,10 @@
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
-import { LoaderCircle, LogIn } from "lucide-react";
+import { Building2, LoaderCircle, LogIn, ScrollText } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { BRAND_NAME, BrandLogo } from "@/components/brand/brand-logo";
+import { AuthNotice, AuthSwitchLinks, EmailField, PasswordField } from "@/components/auth/auth-fields";
+import { AuthShell, authButtonClass } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SixDigitInput } from "@/components/two-factor/six-digit-input";
@@ -95,135 +96,124 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-bg px-4">
-      <div className="w-full max-w-sm">
-        <div className="glow-accent relative mb-8 flex flex-col items-center gap-3 pb-2">
-          <BrandLogo className="relative h-[92px]" />
-          <div className="relative text-center">
-            <h1 className="sr-only">{BRAND_NAME}</h1>
-            <p className="text-sm text-text-muted">Plateforme de gestion sanitaire</p>
+    <AuthShell
+      tone="staff"
+      tagline="L'espace de travail de votre structure, réuni en un seul endroit."
+      description="Consultations, rendez-vous, laboratoire, imagerie, hospitalisation, facturation et pharmacie — tout ce dont votre équipe a besoin au quotidien."
+      points={[
+        { icon: Building2, label: "Données de votre structure, strictement isolées" },
+        { icon: ScrollText, label: "Actions journalisées, sans possibilité de modification" },
+      ]}
+      title="Connexion"
+      subtitle="Accédez à l'espace de travail de votre structure."
+    >
+      {step === "credentials" ? (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <EmailField
+            id="email"
+            label="Adresse e-mail"
+            required
+            autoComplete="username"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="vous@structure.sante"
+          />
+
+          <PasswordField
+            id="password"
+            label="Mot de passe"
+            required
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+          />
+
+          {/* Pas encore de page de réinitialisation pour le personnel : simple indication, sans lien. */}
+          <p className="text-right text-xs text-text-subtle">
+            Mot de passe oublié ? Contactez votre administrateur.
+          </p>
+
+          {notice && <AuthNotice>{notice}</AuthNotice>}
+
+          <Button type="submit" size="lg" className={authButtonClass("staff")} disabled={mutation.isPending}>
+            {mutation.isPending ? (
+              <LoaderCircle size={16} className="animate-spin" />
+            ) : (
+              <LogIn size={16} />
+            )}
+            Se connecter
+          </Button>
+        </form>
+      ) : (
+        <div className="space-y-4 rounded-lg border border-border bg-surface p-6 shadow-[var(--shadow-card)]">
+          <div>
+            <h2 className="font-heading text-base font-semibold text-text">Vérification en deux étapes</h2>
+            <p className="mt-1 text-sm text-text-muted">
+              {useRecovery
+                ? "Saisissez l'un de vos codes de récupération."
+                : "Saisissez le code à 6 chiffres généré par votre application d'authentification."}
+            </p>
+          </div>
+
+          {!useRecovery ? (
+            <SixDigitInput
+              key={attempt}
+              disabled={challengeMutation.isPending}
+              onComplete={(code) => challengeMutation.mutate({ code })}
+            />
+          ) : (
+            <form onSubmit={handleRecoverySubmit} className="space-y-3">
+              <Input
+                placeholder="Code de récupération"
+                value={recoveryCode}
+                onChange={(e) => setRecoveryCode(e.target.value)}
+                disabled={challengeMutation.isPending}
+                autoFocus
+              />
+              <Button type="submit" className="w-full" disabled={challengeMutation.isPending || !recoveryCode}>
+                {challengeMutation.isPending && <LoaderCircle size={16} className="animate-spin" />}
+                Valider
+              </Button>
+            </form>
+          )}
+
+          {challengeMutation.isPending && !useRecovery && (
+            <p className="flex items-center gap-1.5 text-xs text-text-muted">
+              <LoaderCircle size={12} className="animate-spin" /> Vérification...
+            </p>
+          )}
+
+          {notice && <AuthNotice>{notice}</AuthNotice>}
+
+          <div className="flex items-center justify-between text-xs">
+            <button
+              type="button"
+              className="text-text-muted underline-offset-2 hover:underline"
+              onClick={() => {
+                setUseRecovery((v) => !v);
+                setNotice(null);
+              }}
+            >
+              {useRecovery ? "Utiliser le code de l'application" : "Utiliser un code de récupération"}
+            </button>
+            <button
+              type="button"
+              className="text-text-muted underline-offset-2 hover:underline"
+              onClick={backToCredentials}
+            >
+              Retour
+            </button>
           </div>
         </div>
+      )}
 
-        {step === "credentials" ? (
-          <form
-            onSubmit={handleSubmit}
-            className="space-y-4 rounded-lg border border-border bg-surface p-6 shadow-[var(--shadow-card)]"
-          >
-            <div className="space-y-1.5">
-              <label htmlFor="email" className="text-xs font-medium text-text-muted">
-                Adresse e-mail
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                autoComplete="username"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="h-10 w-full rounded-md border border-border bg-bg px-3 text-sm text-text placeholder:text-text-subtle focus:border-border-strong focus:outline-none focus:ring-1 focus:ring-accent"
-                placeholder="vous@structure.sante"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label htmlFor="password" className="text-xs font-medium text-text-muted">
-                Mot de passe
-              </label>
-              <input
-                id="password"
-                type="password"
-                required
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="h-10 w-full rounded-md border border-border bg-bg px-3 text-sm text-text placeholder:text-text-subtle focus:border-border-strong focus:outline-none focus:ring-1 focus:ring-accent"
-                placeholder="••••••••"
-              />
-            </div>
-
-            {notice && (
-              <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
-                {notice}
-              </p>
-            )}
-
-            <Button type="submit" className="w-full" disabled={mutation.isPending}>
-              {mutation.isPending ? (
-                <LoaderCircle size={16} className="animate-spin" />
-              ) : (
-                <LogIn size={16} />
-              )}
-              Se connecter
-            </Button>
-          </form>
-        ) : (
-          <div className="space-y-4 rounded-lg border border-border bg-surface p-6 shadow-[var(--shadow-card)]">
-            <div>
-              <h2 className="font-heading text-base font-semibold text-text">Vérification en deux étapes</h2>
-              <p className="mt-1 text-sm text-text-muted">
-                {useRecovery
-                  ? "Saisissez l'un de vos codes de récupération."
-                  : "Saisissez le code à 6 chiffres généré par votre application d'authentification."}
-              </p>
-            </div>
-
-            {!useRecovery ? (
-              <SixDigitInput
-                key={attempt}
-                disabled={challengeMutation.isPending}
-                onComplete={(code) => challengeMutation.mutate({ code })}
-              />
-            ) : (
-              <form onSubmit={handleRecoverySubmit} className="space-y-3">
-                <Input
-                  placeholder="Code de récupération"
-                  value={recoveryCode}
-                  onChange={(e) => setRecoveryCode(e.target.value)}
-                  disabled={challengeMutation.isPending}
-                  autoFocus
-                />
-                <Button type="submit" className="w-full" disabled={challengeMutation.isPending || !recoveryCode}>
-                  {challengeMutation.isPending && <LoaderCircle size={16} className="animate-spin" />}
-                  Valider
-                </Button>
-              </form>
-            )}
-
-            {challengeMutation.isPending && !useRecovery && (
-              <p className="flex items-center gap-1.5 text-xs text-text-muted">
-                <LoaderCircle size={12} className="animate-spin" /> Vérification...
-              </p>
-            )}
-
-            {notice && (
-              <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
-                {notice}
-              </p>
-            )}
-
-            <div className="flex items-center justify-between text-xs">
-              <button
-                type="button"
-                className="text-text-muted underline-offset-2 hover:underline"
-                onClick={() => {
-                  setUseRecovery((v) => !v);
-                  setNotice(null);
-                }}
-              >
-                {useRecovery ? "Utiliser le code de l'application" : "Utiliser un code de récupération"}
-              </button>
-              <button
-                type="button"
-                className="text-text-muted underline-offset-2 hover:underline"
-                onClick={backToCredentials}
-              >
-                Retour
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+      <AuthSwitchLinks
+        links={[
+          { to: "/portail/login", label: "Je suis un patient" },
+          { to: "/portail-prescripteur/login", label: "Je suis un prescripteur externe" },
+        ]}
+      />
+    </AuthShell>
   );
 }

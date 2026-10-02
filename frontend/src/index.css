@@ -23,6 +23,11 @@
   --color-accent2-light: #a894f5;
   --color-accent2-dark: #6b4fd1;
 
+  /* Accent — turquoise (tertiary), the logo teal (#00AA99) brightened for the dark background */
+  --color-accent3: #1fc2ae;
+  --color-accent3-light: #5cd8c8;
+  --color-accent3-dark: #0f9a8a;
+
   /* Status */
   --color-success: #2fbf71;
   --color-warning: #e8a93b;
