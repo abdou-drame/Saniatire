@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { AuthNotice, AuthSwitchLinks, EmailField, PasswordField } from "@/components/auth/auth-fields";
 import { AuthShell, authButtonClass } from "@/components/auth/auth-shell";
 import { BRAND_NAME } from "@/components/brand/brand-logo";
+import { apiErrorMessage } from "@/lib/api-error";
 import { Button } from "@/components/ui/button";
 import { usePlatformAuth } from "@/hooks/use-platform-auth";
 import { platformApi } from "@/lib/platform-api";
@@ -42,7 +43,8 @@ export function PlatformLoginPage() {
         setNotice("Identifiants invalides.");
         return;
       }
-      setNotice("Impossible de contacter le serveur. Réessayez.");
+      // 429 (trop de tentatives) : message serveur explicite, affiché tel quel.
+      setNotice(apiErrorMessage(error));
     },
   });
 

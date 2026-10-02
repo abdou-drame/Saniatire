@@ -514,13 +514,19 @@ class RolePermissionSeeder extends Seeder
             // réservée à PlatformAdmin (guard `platform`, voir
             // PlatformStructureController::store()) — aucun rôle de
             // structure, pas même administrateur via son wildcard, ne doit
-            // la conserver. structures.delete n'est volontairement pas
-            // retiré : il reste protégé par authorizeOwnStructure() et
-            // n'a pas été identifié comme une faille.
+            // la conserver. Même chose pour structures.delete : la
+            // fermeture définitive d'une structure est une décision
+            // plateforme (PlatformStructureController::archive(), soft
+            // delete journalisé), jamais une action que l'administrateur de
+            // la structure peut déclencher seul sur son propre compte.
+            // Aucun écran frontend ne l'utilisait. Bases déjà seedées :
+            // migration 2026_10_02_000001 qui révoque cette permission.
             if ($roleName === 'administrateur') {
+                $reserved = ['structures.create', 'structures.delete'];
+
                 $effectivePermissions = $effectivePermissions instanceof \Illuminate\Support\Collection
-                    ? $effectivePermissions->reject(fn (Permission $permission) => $permission->name === 'structures.create')
-                    : collect($effectivePermissions)->reject(fn (string $name) => $name === 'structures.create');
+                    ? $effectivePermissions->reject(fn (Permission $permission) => in_array($permission->name, $reserved, true))
+                    : collect($effectivePermissions)->reject(fn (string $name) => in_array($name, $reserved, true));
             }
 
             $role->syncPermissions($effectivePermissions);

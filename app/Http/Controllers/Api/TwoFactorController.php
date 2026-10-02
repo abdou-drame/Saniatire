@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Structure\Models\Structure;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Api\Concerns\ManagesAuthTokens;
 use App\Http\Controllers\Controller;
@@ -130,6 +131,10 @@ class TwoFactorController extends Controller
             $this->registerFailedAttempt($user);
 
             return response()->json(['message' => 'Code invalide.'], 422);
+        }
+
+        if ($reason = Structure::accessDenialReason($user->structure_id)) {
+            return response()->json(['message' => $reason], 403);
         }
 
         Cache::forget($cacheKey);

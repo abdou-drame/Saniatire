@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Domain\Prescripteur\Models\ExternalPrescriber;
 use App\Domain\Shared\Auth\PortalActivationService;
+use App\Domain\Structure\Models\Structure;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ExternalPrescriberResource;
 use Illuminate\Http\JsonResponse;
@@ -42,6 +43,10 @@ class PrescriberPortalAuthController extends Controller
 
         if (! Hash::check($credentials['password'], $prescriber->password)) {
             return response()->json(['message' => 'Identifiants invalides.'], 422);
+        }
+
+        if ($reason = Structure::accessDenialReason($prescriber->structure_id)) {
+            return response()->json(['message' => $reason], 403);
         }
 
         $token = $prescriber->createToken('prescriber-portal')->plainTextToken;

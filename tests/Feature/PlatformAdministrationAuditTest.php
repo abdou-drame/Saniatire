@@ -110,15 +110,16 @@ class PlatformAdministrationAuditTest extends TestCase
      * §2 : la faille structures.create est fermée à deux niveaux distincts —
      * la route elle-même (405, déjà couvert par PlatformAdminTest) et la
      * permission retirée du wildcard administrateur, vérifiée ici
-     * directement sur la configuration des permissions.
+     * directement sur la configuration des permissions. structures.delete
+     * est également réservée à l'administration plateforme (archivage).
      */
-    public function test_structures_create_permission_is_removed_from_the_administrateur_wildcard_but_delete_is_kept(): void
+    public function test_structures_create_and_delete_permissions_are_removed_from_the_administrateur_wildcard(): void
     {
         $role = Role::findByName('administrateur', 'sanctum');
         $permissionNames = $role->permissions->pluck('name');
 
         $this->assertFalse($permissionNames->contains('structures.create'));
-        $this->assertTrue($permissionNames->contains('structures.delete'));
+        $this->assertFalse($permissionNames->contains('structures.delete'));
     }
 
     /**
@@ -185,32 +186,9 @@ class PlatformAdministrationAuditTest extends TestCase
             ])
             ->assertOk();
 
-        // Mot de passe changé, mais 'administrateur' fait partie de
-        // User::ROLES_REQUIRING_TWO_FACTOR : le prochain palier est la 2FA
-        // obligatoire, exactement comme pour n'importe quel autre
-        // administrateur — aucune exemption résiduelle pour ce compte créé
-        // via l'administration plateforme. Confirmé ci-dessous en la
-        // complétant réellement (même flux que TwoFactorController).
-        Auth::forgetGuards();
-        $this->withHeader('Authorization', "Bearer {$sanctumToken}")
-            ->getJson('/api/patients')
-            ->assertStatus(423)
-            ->assertJsonFragment(['message' => "Authentification à deux facteurs obligatoire pour ce rôle : activez-la via /auth/2fa/setup avant de continuer."]);
-
-        Auth::forgetGuards();
-        $secret = $this->withHeader('Authorization', "Bearer {$sanctumToken}")
-            ->postJson('/api/auth/2fa/setup')
-            ->assertOk()
-            ->json('secret');
-
-        Auth::forgetGuards();
-        $code = app(\PragmaRX\Google2FA\Google2FA::class)->getCurrentOtp($secret);
-        $this->withHeader('Authorization', "Bearer {$sanctumToken}")
-            ->postJson('/api/auth/2fa/confirm', ['code' => $code])
-            ->assertOk();
-
-        // Accès normal restauré, une fois les deux paliers (mot de passe
-        // puis 2FA) franchis comme pour tout administrateur classique.
+        // Mot de passe changé : 'administrateur' ne fait plus partie de
+        // User::ROLES_REQUIRING_TWO_FACTOR (commit 4f3968f), l'accès normal
+        // est donc restauré immédiatement, sans palier 2FA.
         Auth::forgetGuards();
         $this->withHeader('Authorization', "Bearer {$sanctumToken}")
             ->getJson('/api/patients')

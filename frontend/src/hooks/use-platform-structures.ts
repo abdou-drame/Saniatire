@@ -76,6 +76,26 @@ export function useActivatePlatformStructure() {
   });
 }
 
+/**
+ * Archivage définitif (soft delete côté backend, journalisé) : tous les
+ * comptes de la structure perdent l'accès, la fiche reste consultable ici.
+ */
+export function useArchivePlatformStructure() {
+  const queryClient = useQueryClient();
+  const invalidate = useInvalidatePlatformStructures();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const { data } = await platformApi.post<{ data: Structure }>(`/platform/structures/${id}/archive`);
+      return data.data;
+    },
+    onSuccess: (structure) => {
+      // La fiche bascule tout de suite en lecture seule, sans attendre le refetch.
+      queryClient.setQueryData(["platform-structures", structure.id], structure);
+      invalidate();
+    },
+  });
+}
+
 export function useDeactivatePlatformStructure() {
   const invalidate = useInvalidatePlatformStructures();
   return useMutation({

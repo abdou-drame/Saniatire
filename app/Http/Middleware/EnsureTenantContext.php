@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Domain\Structure\Models\Structure;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -28,6 +29,16 @@ class EnsureTenantContext
         // qu'à l'émission du token, jamais à sa réutilisation ultérieure.
         if ($user && method_exists($user, 'isActif') && ! $user->isActif()) {
             abort(401, 'Ce compte est désactivé.');
+        }
+
+        // Structure suspendue ou archivée par l'administration plateforme :
+        // même contrôle qu'au login (Structure::accessDenialReason()),
+        // répété ici pour qu'un token émis avant la suspension cesse
+        // immédiatement de fonctionner. 401 plutôt que 403 : les clients
+        // frontend purgent le token sur 401 et renvoient à la page de
+        // connexion, qui affiche alors le motif exact.
+        if ($user && ($reason = Structure::accessDenialReason($user->structure_id))) {
+            abort(401, $reason);
         }
 
         return $next($request);

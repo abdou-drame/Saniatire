@@ -46,6 +46,30 @@ class Structure extends Model
         ];
     }
 
+    /**
+     * Raison pour laquelle les comptes rattachés à cette structure (personnel,
+     * patients, prescripteurs) ne peuvent pas accéder à l'application, ou null
+     * si l'accès est permis. Règle unique, appliquée à chaque émission de
+     * token (les 3 logins + le challenge 2FA) et à chaque requête authentifiée
+     * (EnsureTenantContext) — une suspension coupe donc aussi les tokens déjà
+     * émis. withTrashed() : une structure archivée doit être reconnue comme
+     * telle, pas confondue avec une structure inexistante.
+     */
+    public static function accessDenialReason(?int $structureId): ?string
+    {
+        $structure = $structureId ? static::withTrashed()->find($structureId) : null;
+
+        if (! $structure || $structure->trashed()) {
+            return "Cette structure n'est plus active sur la plateforme.";
+        }
+
+        if (! $structure->is_active) {
+            return "L'accès à cette structure est suspendu. Contactez l'administration de la plateforme.";
+        }
+
+        return null;
+    }
+
     public function sites(): HasMany
     {
         return $this->hasMany(Site::class);

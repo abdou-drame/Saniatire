@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Domain\Patient\Models\Patient;
 use App\Domain\Shared\Auth\PortalActivationService;
+use App\Domain\Structure\Models\Structure;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\PatientResource;
 use Illuminate\Http\JsonResponse;
@@ -42,6 +43,10 @@ class PatientPortalAuthController extends Controller
 
         if (! Hash::check($credentials['password'], $patient->password)) {
             return response()->json(['message' => 'Identifiants invalides.'], 422);
+        }
+
+        if ($reason = Structure::accessDenialReason($patient->structure_id)) {
+            return response()->json(['message' => $reason], 403);
         }
 
         $token = $patient->createToken('patient-portal')->plainTextToken;

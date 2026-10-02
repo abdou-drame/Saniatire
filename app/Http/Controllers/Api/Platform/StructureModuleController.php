@@ -26,6 +26,7 @@ class StructureModuleController extends Controller
     public function update(StructureModuleUpdateRequest $request, Structure $structure, StructureModule $module): StructureModuleResource
     {
         abort_unless($module->structure_id === $structure->id, 404);
+        abort_if($structure->trashed(), 409, 'Cette structure est archivée : elle reste consultable mais ne peut plus être modifiée.');
 
         $isActive = $request->validated('is_active');
 

@@ -1441,6 +1441,8 @@ export interface Structure {
   currency: string | null;
   locale: string | null;
   is_active: boolean;
+  /** Renseigné quand la plateforme a archivé la structure (consultation seule). */
+  archived_at?: string | null;
   created_at: string;
   updated_at: string;
 }

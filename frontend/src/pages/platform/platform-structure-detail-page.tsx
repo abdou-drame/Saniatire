@@ -4,12 +4,14 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton, TableSkeleton } from "@/components/ui/loading-state";
 import { Switch } from "@/components/ui/switch";
 import {
   useActivatePlatformStructure,
+  useArchivePlatformStructure,
   useDeactivatePlatformStructure,
   usePlatformStructure,
 } from "@/hooks/use-platform-structures";
@@ -26,11 +28,12 @@ const STRUCTURE_TYPE_LABEL: Record<string, string> = {
   groupe_sante: "Groupe santé",
 };
 
-function ModuleRow({ structureId, moduleId, moduleName, isActive }: {
+function ModuleRow({ structureId, moduleId, moduleName, isActive, readOnly }: {
   structureId: number;
   moduleId: number;
   moduleName: string;
   isActive: boolean;
+  readOnly: boolean;
 }) {
   const [error, setError] = useState<string | null>(null);
   const updateModule = useUpdatePlatformStructureModule(structureId);
@@ -54,7 +57,7 @@ function ModuleRow({ structureId, moduleId, moduleName, isActive }: {
         <Switch
           checked={isActive}
           onCheckedChange={handleToggle}
-          disabled={updateModule.isPending}
+          disabled={readOnly || updateModule.isPending}
           label={`Module ${moduleName}`}
         />
       </div>
@@ -71,7 +74,22 @@ export function PlatformStructureDetailPage() {
   const modulesQuery = usePlatformStructureModules(structureId);
   const activateStructure = useActivatePlatformStructure();
   const deactivateStructure = useDeactivatePlatformStructure();
+  const archiveStructure = useArchivePlatformStructure();
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [confirmArchive, setConfirmArchive] = useState(false);
+  const isArchived = Boolean(structureQuery.data?.archived_at);
+
+  function handleArchive() {
+    if (!structureQuery.data) return;
+    setStatusError(null);
+    archiveStructure.mutate(structureQuery.data.id, {
+      onSuccess: () => setConfirmArchive(false),
+      onError: (err) => {
+        setConfirmArchive(false);
+        setStatusError(apiErrorMessage(err));
+      },
+    });
+  }
 
   function handleToggleActive() {
     if (!structureQuery.data) return;
@@ -108,24 +126,38 @@ export function PlatformStructureDetailPage() {
                     {structureQuery.data.city && <> · {structureQuery.data.city}</>}
                   </p>
                 </div>
-                <Badge status={structureQuery.data.is_active ? "success" : "neutral"}>
-                  {structureQuery.data.is_active ? "Active" : "Inactive"}
-                </Badge>
+                {isArchived ? (
+                  <Badge status="danger">Archivée</Badge>
+                ) : (
+                  <Badge status={structureQuery.data.is_active ? "success" : "neutral"}>
+                    {structureQuery.data.is_active ? "Active" : "Suspendue"}
+                  </Badge>
+                )}
               </div>
 
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant={structureQuery.data.is_active ? "danger" : "secondary"}
-                  onClick={handleToggleActive}
-                  disabled={activateStructure.isPending || deactivateStructure.isPending}
-                >
-                  {(activateStructure.isPending || deactivateStructure.isPending) && (
-                    <LoaderCircle size={14} className="animate-spin" />
-                  )}
-                  {structureQuery.data.is_active ? "Désactiver la structure" : "Activer la structure"}
-                </Button>
-              </div>
+              {isArchived ? (
+                <p className="rounded-md border border-border bg-surface-hover px-3 py-2 text-xs text-text-muted">
+                  Archivée le {new Date(structureQuery.data.archived_at as string).toLocaleDateString("fr-FR")}. Aucun compte de cette
+                  structure ne peut plus se connecter. La fiche et son historique restent consultables, en lecture seule.
+                </p>
+              ) : (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant={structureQuery.data.is_active ? "danger" : "secondary"}
+                    onClick={handleToggleActive}
+                    disabled={activateStructure.isPending || deactivateStructure.isPending}
+                  >
+                    {(activateStructure.isPending || deactivateStructure.isPending) && (
+                      <LoaderCircle size={14} className="animate-spin" />
+                    )}
+                    {structureQuery.data.is_active ? "Suspendre la structure" : "Réactiver la structure"}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setConfirmArchive(true)} disabled={archiveStructure.isPending}>
+                    Archiver définitivement
+                  </Button>
+                </div>
+              )}
               {statusError && (
                 <p className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
                   {statusError}
@@ -160,12 +192,22 @@ export function PlatformStructureDetailPage() {
                   moduleId={module.id}
                   moduleName={module.module}
                   isActive={module.is_active}
+                  readOnly={isArchived}
                 />
               ))}
             </div>
           ) : null}
         </CardContent>
       </Card>
+      <ConfirmDialog
+        open={confirmArchive}
+        onOpenChange={setConfirmArchive}
+        title="Archiver cette structure ?"
+        description="Tous ses comptes (personnel, patients, prescripteurs) perdent immédiatement l'accès, y compris les sessions ouvertes. Aucune donnée n'est supprimée et la fiche reste consultable ici, mais l'archivage ne peut pas être annulé depuis cette interface."
+        confirmLabel="Archiver"
+        isPending={archiveStructure.isPending}
+        onConfirm={handleArchive}
+      />
       <p className="text-xs text-text-subtle">
         Aucune autre partie de l'application n'est branchée sur ces bascules à ce stade — c'est normal.
       </p>

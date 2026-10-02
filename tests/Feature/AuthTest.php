@@ -76,6 +76,11 @@ class AuthTest extends TestCase
             ]);
         }
 
+        // Une 6e tentative dans la minute serait d'abord refusée par le
+        // limiteur `login` (429). Une fois sa fenêtre passée, le
+        // verrouillage du compte (15 min) continue, lui, de s'appliquer.
+        $this->travel(61)->seconds();
+
         $response = $this->postJson('/api/auth/login', [
             'email' => $user->email,
             'password' => 'correct-password',

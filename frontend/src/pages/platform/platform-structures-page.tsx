@@ -36,7 +36,11 @@ export function PlatformStructuresPage() {
       key: "is_active",
       header: "Statut",
       render: (s) => (
-        <Badge status={s.is_active ? "success" : "neutral"}>{s.is_active ? "Active" : "Inactive"}</Badge>
+        s.archived_at ? (
+          <Badge status="danger">Archivée</Badge>
+        ) : (
+          <Badge status={s.is_active ? "success" : "neutral"}>{s.is_active ? "Active" : "Suspendue"}</Badge>
+        )
       ),
     },
   ];

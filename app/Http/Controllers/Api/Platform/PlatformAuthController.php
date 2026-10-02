@@ -29,15 +29,40 @@ class PlatformAuthController extends Controller
         $admin = PlatformAdmin::query()->where('email', $credentials['email'])->first();
 
         if (! $admin || ! Hash::check($credentials['password'], $admin->password)) {
+            $this->auditLogin($admin, 'echec_connexion_plateforme', "Échec de connexion à l'administration plateforme.", [
+                'email' => $credentials['email'],
+            ]);
+
             return response()->json(['message' => 'Identifiants invalides.'], 422);
         }
 
         $token = $admin->createToken('platform-admin')->plainTextToken;
 
+        $this->auditLogin($admin, 'connexion_plateforme', "Connexion à l'administration plateforme.");
+
         return response()->json([
             'token' => $token,
             'platform_admin' => new PlatformAdminResource($admin),
         ]);
+    }
+
+    /**
+     * Connexions (réussies ou non) tracées dans le même journal que les
+     * actions plateforme (log_name administration_plateforme, consultable
+     * via PlatformAuditLogController). structure_id reste null : une
+     * connexion n'appartient à aucune structure. L'IP est ajoutée par le
+     * hook Activity::creating d'AppServiceProvider.
+     */
+    private function auditLogin(?PlatformAdmin $admin, string $action, string $description, array $properties = []): void
+    {
+        $logger = activity('administration_plateforme')
+            ->withProperties([...$properties, 'action' => $action]);
+
+        if ($admin) {
+            $logger->causedBy($admin);
+        }
+
+        $logger->log($description);
     }
 
     public function logout(Request $request): JsonResponse

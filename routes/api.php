@@ -94,19 +94,19 @@ use App\Http\Controllers\Api\WardController;
 use App\Http\Controllers\Api\WorkScheduleController;
 use Illuminate\Support\Facades\Route;
 
-Route::post('/auth/login', [AuthController::class, 'login']);
+Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
 Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
 
 // Étape 9 §2 : échange d'un challenge 2FA temporaire contre un vrai token —
 // volontairement sans auth:sanctum (l'utilisateur n'a justement pas encore
 // de token à ce stade), voir AuthController::login()/TwoFactorController.
-Route::post('/auth/2fa/challenge', [TwoFactorController::class, 'challenge']);
+Route::post('/auth/2fa/challenge', [TwoFactorController::class, 'challenge'])->middleware('throttle:login');
 
 // --- Étape 7b : portail patient (guard `patient`) ---
 
 Route::post('/portail-patient/activer', [PatientPortalAuthController::class, 'activate']);
-Route::post('/portail-patient/login', [PatientPortalAuthController::class, 'login']);
+Route::post('/portail-patient/login', [PatientPortalAuthController::class, 'login'])->middleware('throttle:login');
 Route::post('/portail-patient/mot-de-passe-oublie', [PatientPortalAuthController::class, 'forgotPassword']);
 Route::post('/portail-patient/reinitialiser-mot-de-passe', [PatientPortalAuthController::class, 'resetPassword']);
 
@@ -138,7 +138,7 @@ Route::middleware(['auth:patient', 'tenant:patient'])->prefix('portail-patient')
 // --- Étape 7b : portail prescripteur externe (guard `prescriber`) ---
 
 Route::post('/portail-prescripteur/activer', [PrescriberPortalAuthController::class, 'activate']);
-Route::post('/portail-prescripteur/login', [PrescriberPortalAuthController::class, 'login']);
+Route::post('/portail-prescripteur/login', [PrescriberPortalAuthController::class, 'login'])->middleware('throttle:login');
 Route::post('/portail-prescripteur/mot-de-passe-oublie', [PrescriberPortalAuthController::class, 'forgotPassword']);
 Route::post('/portail-prescripteur/reinitialiser-mot-de-passe', [PrescriberPortalAuthController::class, 'resetPassword']);
 
@@ -183,7 +183,7 @@ Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
 // structure_id) ni `two_factor`/`password_change` (propres au guard `users`).
 // Compte unique créé via `php artisan platform:create-admin`, jamais de
 // formulaire d'inscription public.
-Route::post('/platform/login', [PlatformAuthController::class, 'login']);
+Route::post('/platform/login', [PlatformAuthController::class, 'login'])->middleware('throttle:login');
 
 Route::middleware('auth:platform')->prefix('platform')->group(function () {
     Route::post('/logout', [PlatformAuthController::class, 'logout']);
@@ -191,13 +191,17 @@ Route::middleware('auth:platform')->prefix('platform')->group(function () {
 
     Route::get('/structures', [PlatformStructureController::class, 'index']);
     Route::post('/structures', [PlatformStructureController::class, 'store']);
-    Route::get('/structures/{structure}', [PlatformStructureController::class, 'show']);
-    Route::patch('/structures/{structure}', [PlatformStructureController::class, 'update']);
-    Route::post('/structures/{structure}/activate', [PlatformStructureController::class, 'activate']);
-    Route::post('/structures/{structure}/deactivate', [PlatformStructureController::class, 'deactivate']);
+    // withTrashed() : une structure archivée reste consultable (historique)
+    // par la plateforme ; les actions d'écriture la refusent explicitement
+    // (409) plutôt que de répondre un 404 trompeur.
+    Route::get('/structures/{structure}', [PlatformStructureController::class, 'show'])->withTrashed();
+    Route::patch('/structures/{structure}', [PlatformStructureController::class, 'update'])->withTrashed();
+    Route::post('/structures/{structure}/activate', [PlatformStructureController::class, 'activate'])->withTrashed();
+    Route::post('/structures/{structure}/deactivate', [PlatformStructureController::class, 'deactivate'])->withTrashed();
+    Route::post('/structures/{structure}/archive', [PlatformStructureController::class, 'archive'])->withTrashed();
 
-    Route::get('/structures/{structure}/modules', [PlatformStructureModuleController::class, 'index']);
-    Route::patch('/structures/{structure}/modules/{module}', [PlatformStructureModuleController::class, 'update']);
+    Route::get('/structures/{structure}/modules', [PlatformStructureModuleController::class, 'index'])->withTrashed();
+    Route::patch('/structures/{structure}/modules/{module}', [PlatformStructureModuleController::class, 'update'])->withTrashed();
 
     Route::get('/audit-logs', [PlatformAuditLogController::class, 'index']);
 });

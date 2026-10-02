@@ -28,9 +28,13 @@ use Illuminate\Support\Str;
  */
 class PlatformStructureController extends Controller
 {
+    /**
+     * Inclut les structures archivées (soft delete) : la plateforme garde
+     * leur historique consultable, voir archive().
+     */
     public function index(): JsonResponse
     {
-        $structures = Structure::query()->orderBy('legal_name')->paginate();
+        $structures = Structure::withTrashed()->orderBy('legal_name')->paginate();
 
         return StructureResource::collection($structures)->response();
     }
@@ -113,6 +117,8 @@ class PlatformStructureController extends Controller
 
     public function update(StructureRequest $request, Structure $structure): StructureResource
     {
+        $this->abortIfArchived($structure);
+
         $structure->update($request->validated());
 
         $this->auditPlatformAction($request, $structure, $structure->id, 'modification_structure', [
@@ -124,6 +130,8 @@ class PlatformStructureController extends Controller
 
     public function activate(Request $request, Structure $structure): StructureResource
     {
+        $this->abortIfArchived($structure);
+
         $structure->update(['is_active' => true]);
 
         $this->auditPlatformAction($request, $structure, $structure->id, 'activation_structure');
@@ -133,11 +141,46 @@ class PlatformStructureController extends Controller
 
     public function deactivate(Request $request, Structure $structure): StructureResource
     {
+        $this->abortIfArchived($structure);
+
         $structure->update(['is_active' => false]);
 
         $this->auditPlatformAction($request, $structure, $structure->id, 'desactivation_structure');
 
         return new StructureResource($structure);
+    }
+
+    /**
+     * Archivage définitif : soft delete uniquement, jamais de suppression
+     * physique. Un DELETE réel est de toute façon impossible et serait
+     * destructeur : activity_log.structure_id est en nullOnDelete, donc la
+     * suppression tenterait un UPDATE du journal, refusé par son trigger
+     * append-only ; et ~59 clés étrangères structure_id sont en
+     * cascadeOnDelete, qui effaceraient les dossiers médicaux. is_active
+     * est aussi passé à false pour que la structure n'apparaisse active
+     * nulle part. L'accès de tous ses comptes est coupé par
+     * Structure::accessDenialReason(). Pas de restauration exposée.
+     */
+    public function archive(Request $request, Structure $structure): StructureResource
+    {
+        $this->abortIfArchived($structure);
+
+        DB::transaction(function () use ($request, $structure) {
+            $structure->update(['is_active' => false]);
+            $structure->delete();
+
+            $this->auditPlatformAction($request, $structure, $structure->id, 'archivage_structure', [
+                'legal_name' => $structure->legal_name,
+                'code' => $structure->code,
+            ]);
+        });
+
+        return new StructureResource($structure);
+    }
+
+    private function abortIfArchived(Structure $structure): void
+    {
+        abort_if($structure->trashed(), 409, 'Cette structure est archivée : elle reste consultable mais ne peut plus être modifiée.');
     }
 
     /**

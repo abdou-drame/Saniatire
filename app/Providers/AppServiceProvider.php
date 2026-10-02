@@ -27,8 +27,11 @@ use App\Domain\Shared\Auth\Events\PortailActivationDemandee;
 use App\Domain\Shared\Auth\Listeners\SendPortailActivationNotification;
 use App\Domain\Shared\Tenancy\TenantScope;
 use App\Domain\Teleconsultation\Events\TeleconsultationPlanifiee;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use RuntimeException;
 use Spatie\Activitylog\Models\Activity;
@@ -56,6 +59,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->configureLoginRateLimiting();
+
         // spatie/laravel-activitylog doesn't capture the request IP by
         // default; the socle's audit requirements ask for it explicitly.
         // Étape 9 : structure_id est aussi renseigné ici, pour que
@@ -112,5 +117,33 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(TeleconsultationPlanifiee::class, ScheduleTeleconsultationRappel::class);
         Event::listen(ReferencementAccepte::class, [SendReferencementStatutNotification::class, 'handleAccepte']);
         Event::listen(ReferencementRefuse::class, [SendReferencementStatutNotification::class, 'handleRefuse']);
+    }
+
+    /**
+     * Limiteur `login`, appliqué aux 4 routes de connexion (personnel,
+     * patient, prescripteur, plateforme) et au challenge 2FA. Deux
+     * plafonds cumulés : 5 tentatives/minute par couple e-mail + IP (même
+     * seuil que le verrouillage de compte personnel, ManagesAuthTokens) —
+     * ou par challenge + IP pour /auth/2fa/challenge, qui n'a pas d'e-mail —
+     * et 60/minute par IP seule pour freiner un balayage de nombreux
+     * e-mails depuis une même adresse, sans gêner une structure dont tout
+     * le personnel sort par la même IP (NAT). Indispensable pour les
+     * guards patient/prescripteur/plateforme, qui n'ont aucun verrouillage
+     * de compte propre.
+     */
+    private function configureLoginRateLimiting(): void
+    {
+        RateLimiter::for('login', function (Request $request) {
+            $response = fn (Request $request, array $headers) => response()->json([
+                'message' => 'Trop de tentatives de connexion. Réessayez dans '.($headers['Retry-After'] ?? 60).' secondes.',
+            ], 429, $headers);
+
+            $identity = mb_strtolower((string) ($request->input('email') ?? $request->input('challenge')));
+
+            return [
+                Limit::perMinute(5)->by('login:'.$identity.'|'.$request->ip())->response($response),
+                Limit::perMinute(60)->by('login-ip:'.$request->ip())->response($response),
+            ];
+        });
     }
 }

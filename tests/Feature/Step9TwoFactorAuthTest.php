@@ -25,7 +25,7 @@ class Step9TwoFactorAuthTest extends TestCase
     {
         $structure = Structure::factory()->create();
         $admin = User::factory()->for($structure)->create(['password' => Hash::make('correct-password')]);
-        $admin->assignRole('administrateur');
+        $admin->assignRole('direction');
 
         $login = $this->postJson('/api/auth/login', [
             'email' => $admin->email,
@@ -82,7 +82,7 @@ class Step9TwoFactorAuthTest extends TestCase
     {
         $structure = Structure::factory()->create();
         $admin = User::factory()->for($structure)->create(['password' => Hash::make('correct-password')]);
-        $admin->assignRole('administrateur');
+        $admin->assignRole('direction');
         $secret = $admin->generateTwoFactorSecret();
         $admin->confirmTwoFactor();
 
@@ -114,7 +114,7 @@ class Step9TwoFactorAuthTest extends TestCase
     {
         $structure = Structure::factory()->create();
         $admin = User::factory()->for($structure)->create(['password' => Hash::make('correct-password')]);
-        $admin->assignRole('administrateur');
+        $admin->assignRole('direction');
         $admin->generateTwoFactorSecret();
         $codes = $admin->confirmTwoFactor();
         $recoveryCode = $codes[0];
@@ -146,7 +146,7 @@ class Step9TwoFactorAuthTest extends TestCase
     {
         $structure = Structure::factory()->create();
         $admin = User::factory()->for($structure)->create(['password' => Hash::make('correct-password')]);
-        $admin->assignRole('administrateur');
+        $admin->assignRole('direction');
         $admin->generateTwoFactorSecret();
         $admin->confirmTwoFactor();
 

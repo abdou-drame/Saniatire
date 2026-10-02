@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AuthNotice, AuthSwitchLinks, EmailField, PasswordField } from "@/components/auth/auth-fields";
 import { AuthShell, authButtonClass } from "@/components/auth/auth-shell";
+import { apiErrorMessage } from "@/lib/api-error";
 import { Button } from "@/components/ui/button";
 import { usePrescriberAuth } from "@/hooks/use-prescriber-auth";
 import { prescriberApi } from "@/lib/prescriber-api";
@@ -37,7 +38,9 @@ export function PrescriberLoginPage() {
         setNotice("Identifiant ou mot de passe incorrect.");
         return;
       }
-      setNotice("Impossible de contacter le serveur. Réessayez.");
+      // 403 (structure suspendue ou archivée) et 429 (trop de tentatives) :
+      // le message serveur est explicite et affiché tel quel.
+      setNotice(apiErrorMessage(error));
     },
   });
 

@@ -29,6 +29,9 @@ class StructureResource extends JsonResource
             'currency' => $this->currency,
             'locale' => $this->locale,
             'is_active' => $this->is_active,
+            // Renseigné si la plateforme a archivé la structure (soft delete) :
+            // consultation seule, voir PlatformStructureController::archive().
+            'archived_at' => $this->deleted_at,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
