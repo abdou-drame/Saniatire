@@ -1,5 +1,6 @@
-import { Building2, ClipboardList, LogOut, ShieldCheck } from "lucide-react";
+import { Building2, ClipboardList, LogOut } from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { BRAND_NAME, BrandMark } from "@/components/brand/brand-logo";
 import { usePlatformAuth } from "@/hooks/use-platform-auth";
 import { cn } from "@/lib/utils";
 
@@ -26,11 +27,9 @@ export function PlatformLayout() {
       <header className="border-b border-border bg-surface">
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-4 py-3">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-white">
-              <ShieldCheck size={18} strokeWidth={2.25} />
-            </div>
+            <BrandMark />
             <div>
-              <p className="font-heading text-sm font-semibold text-text">Sanitaire</p>
+              <p className="font-heading text-sm font-semibold text-text">{BRAND_NAME}</p>
               <p className="text-xs text-text-muted">
                 {platformAdmin ? platformAdmin.name : "Administration plateforme"}
               </p>

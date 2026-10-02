@@ -1,4 +1,5 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { BRAND_NAME } from "@/components/brand/brand-logo";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { navigationSections } from "@/config/navigation";
@@ -12,7 +13,7 @@ function currentPageTitle(pathname: string): string {
     const match = section.items.find((item) => item.href === pathname);
     if (match) return match.label;
   }
-  return "Sanitaire";
+  return BRAND_NAME;
 }
 
 export function AppLayout() {

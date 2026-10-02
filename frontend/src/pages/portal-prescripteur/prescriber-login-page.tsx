@@ -1,8 +1,9 @@
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
-import { Activity, LoaderCircle, LogIn } from "lucide-react";
+import { LoaderCircle, LogIn } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { BRAND_NAME, BrandLogo } from "@/components/brand/brand-logo";
 import { Button } from "@/components/ui/button";
 import { usePrescriberAuth } from "@/hooks/use-prescriber-auth";
 import { prescriberApi } from "@/lib/prescriber-api";
@@ -49,11 +50,9 @@ export function PrescriberLoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-bg px-4">
       <div className="w-full max-w-sm">
         <div className="glow-accent relative mb-8 flex flex-col items-center gap-3 pb-2">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent text-white">
-            <Activity size={22} strokeWidth={2.25} />
-          </div>
+          <BrandLogo className="relative h-[92px]" />
           <div className="relative text-center">
-            <h1 className="font-heading text-lg font-semibold text-text">Sanitaire</h1>
+            <h1 className="sr-only">{BRAND_NAME}</h1>
             <p className="text-sm text-text-muted">Espace prescripteur</p>
           </div>
         </div>

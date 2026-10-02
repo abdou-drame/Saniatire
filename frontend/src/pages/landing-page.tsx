@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
-  Activity,
   ArrowRight,
   BedDouble,
   CalendarClock,
@@ -18,6 +17,7 @@ import {
   UserRound,
   type LucideIcon,
 } from "lucide-react";
+import { BRAND_NAME, BrandLogo } from "@/components/brand/brand-logo";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -141,17 +141,6 @@ const SECURITY_POINTS: Feature[] = [
   },
 ];
 
-function Logo() {
-  return (
-    <span className="flex items-center gap-2.5">
-      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-white">
-        <Activity size={17} strokeWidth={2.25} />
-      </span>
-      <span className="font-heading text-base font-semibold text-text">Sanitaire</span>
-    </span>
-  );
-}
-
 function IconTile({ icon: Icon, tone = "accent" }: { icon: LucideIcon; tone?: "accent" | "accent2" }) {
   return (
     <span
@@ -180,9 +169,9 @@ export function LandingPage() {
   return (
     <div className="min-h-screen bg-bg text-text">
       <header className="fixed inset-x-0 top-0 z-50 border-b border-border/60 bg-bg/80 backdrop-blur">
-        <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-          <a href="#top" aria-label="Sanitaire — haut de page">
-            <Logo />
+        <nav className="mx-auto flex h-[88px] max-w-6xl items-center justify-between gap-4 px-4 sm:h-[108px] sm:px-6">
+          <a href="#top" aria-label={`${BRAND_NAME} — haut de page`}>
+            <BrandLogo className="h-[72px] sm:h-[92px]" />
           </a>
           <div className="hidden items-center gap-7 md:flex">
             {NAV_LINKS.map((link) => (
@@ -203,7 +192,7 @@ export function LandingPage() {
 
       <main id="top">
         {/* Hero */}
-        <section className="glow-accent relative overflow-hidden px-4 pb-20 pt-36 sm:px-6 sm:pt-44">
+        <section className="glow-accent relative overflow-hidden px-4 pb-20 pt-40 sm:px-6 sm:pt-52">
           <div className="relative mx-auto max-w-3xl text-center">
             <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 font-mono text-[11px] uppercase tracking-wider text-text-muted">
               <span className="h-1.5 w-1.5 rounded-full bg-accent" />
@@ -228,7 +217,7 @@ export function LandingPage() {
                 </a>
               </Button>
               <Button asChild variant="secondary" size="lg" className="w-full sm:w-auto">
-                <a href="#contact">Présenter Sanitaire à ma structure</a>
+                <a href="#contact">Présenter {BRAND_NAME} à ma structure</a>
               </Button>
             </div>
             <ul className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-3">
@@ -243,7 +232,7 @@ export function LandingPage() {
         </section>
 
         {/* Portails */}
-        <section id="portails" className="scroll-mt-20 px-4 py-20 sm:px-6">
+        <section id="portails" className="scroll-mt-24 sm:scroll-mt-28 px-4 py-20 sm:px-6">
           <div className="mx-auto max-w-6xl">
             <SectionHeading eyebrow="Portails" title="Choisissez votre espace">
               Chaque profil dispose de son propre espace de connexion.
@@ -282,7 +271,7 @@ export function LandingPage() {
                   </span>
                 </p>
                 <p className="mt-0.5 text-xs text-text-subtle">
-                  Réservé à l'équipe Sanitaire — supervision et activation des structures clientes.
+                  Réservé à l'équipe {BRAND_NAME} — supervision et activation des structures clientes.
                 </p>
               </div>
               <Button asChild variant="ghost" size="sm" className="self-start group-hover:bg-surface-hover group-hover:text-text sm:self-auto">
@@ -293,7 +282,7 @@ export function LandingPage() {
         </section>
 
         {/* Plateforme */}
-        <section id="plateforme" className="scroll-mt-20 border-t border-border px-4 py-20 sm:px-6">
+        <section id="plateforme" className="scroll-mt-24 sm:scroll-mt-28 border-t border-border px-4 py-20 sm:px-6">
           <div className="mx-auto max-w-6xl">
             <SectionHeading eyebrow="Plateforme" title="Un seul outil pour tout le parcours de soin" />
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -311,7 +300,7 @@ export function LandingPage() {
         </section>
 
         {/* Sécurité */}
-        <section id="securite" className="scroll-mt-20 px-4 py-20 sm:px-6">
+        <section id="securite" className="scroll-mt-24 sm:scroll-mt-28 px-4 py-20 sm:px-6">
           <div className="mx-auto max-w-6xl">
             <div className="glow-accent relative overflow-hidden rounded-2xl border border-border bg-surface px-6 py-12 sm:px-10">
               <div className="relative">
@@ -331,13 +320,13 @@ export function LandingPage() {
         </section>
 
         {/* Contact */}
-        <section id="contact" className="scroll-mt-20 border-t border-border px-4 py-20 sm:px-6">
+        <section id="contact" className="scroll-mt-24 sm:scroll-mt-28 border-t border-border px-4 py-20 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="font-heading text-2xl font-semibold text-text sm:text-3xl">
               Vous dirigez une structure de santé privée ?
             </h2>
             <p className="mt-3 text-sm text-text-muted sm:text-base">
-              Découvrez comment Sanitaire peut centraliser la gestion de votre cabinet, laboratoire ou
+              Découvrez comment {BRAND_NAME} peut centraliser la gestion de votre cabinet, laboratoire ou
               clinique. Échangeons sur vos besoins.
             </p>
             {CONTACT_EMAIL && (
@@ -351,9 +340,9 @@ export function LandingPage() {
 
       <footer className="border-t border-border px-4 py-8 sm:px-6">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
-          <Logo />
+          <BrandLogo className="h-14" />
           <p className="text-center text-xs text-text-subtle sm:text-right">
-            © 2026 Sanitaire — Plateforme de gestion des structures sanitaires privées, Sénégal.
+            © 2026 {BRAND_NAME} — Plateforme de gestion des structures sanitaires privées, Sénégal.
           </p>
         </div>
       </footer>

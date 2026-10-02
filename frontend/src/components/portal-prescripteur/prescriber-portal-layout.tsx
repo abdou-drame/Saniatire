@@ -1,5 +1,6 @@
-import { Activity, ClipboardList, LogOut, PlusCircle } from "lucide-react";
+import { ClipboardList, LogOut, PlusCircle } from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { BRAND_NAME, BrandMark } from "@/components/brand/brand-logo";
 import { usePrescriberAuth } from "@/hooks/use-prescriber-auth";
 import { cn } from "@/lib/utils";
 
@@ -22,11 +23,9 @@ export function PrescriberPortalLayout() {
       <header className="border-b border-border bg-surface">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-3">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-white">
-              <Activity size={18} strokeWidth={2.25} />
-            </div>
+            <BrandMark />
             <div>
-              <p className="font-heading text-sm font-semibold text-text">Sanitaire</p>
+              <p className="font-heading text-sm font-semibold text-text">{BRAND_NAME}</p>
               <p className="text-xs text-text-muted">
                 {prescriber ? `Dr ${prescriber.nom}` : "Espace prescripteur"}
               </p>

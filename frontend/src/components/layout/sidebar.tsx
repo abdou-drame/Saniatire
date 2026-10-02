@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
-import { Activity } from "lucide-react";
 import { NavLink } from "react-router-dom";
+import { BRAND_NAME, BrandMark } from "@/components/brand/brand-logo";
 import { cn } from "@/lib/utils";
 
 export interface NavItem {
@@ -19,13 +19,11 @@ export interface SidebarProps {
   structureName?: string;
 }
 
-export function Sidebar({ sections, structureName = "Sanitaire" }: SidebarProps) {
+export function Sidebar({ sections, structureName = BRAND_NAME }: SidebarProps) {
   return (
     <aside className="flex h-screen w-[230px] shrink-0 flex-col border-r border-border bg-surface">
       <div className="glow-accent relative flex items-center gap-2.5 border-b border-border px-5 py-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-accent text-white">
-          <Activity size={18} strokeWidth={2.25} />
-        </div>
+        <BrandMark className="relative h-8 w-8 rounded-md" />
         <span className="relative font-heading text-sm font-semibold text-text">
           {structureName}
         </span>
