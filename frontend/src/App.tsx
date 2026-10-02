@@ -17,6 +17,7 @@ import { ConsultationsPage } from "@/pages/consultations/consultations-page";
 import { DashboardPage } from "@/pages/dashboard-page";
 import { DirectionPage } from "@/pages/direction/direction-page";
 import { DoctorDashboardPage } from "@/pages/doctor/doctor-dashboard-page";
+import { LandingPage } from "@/pages/landing-page";
 import { LoginPage } from "@/pages/login-page";
 import { LaboratoirePage } from "@/pages/laboratoire/laboratoire-page";
 import { ImageriePage } from "@/pages/imagerie/imagerie-page";
@@ -349,6 +350,12 @@ export default function App() {
   return (
     <Routes>
       {/*
+        Landing publique : hors de tout provider d'authentification, aucune
+        dépendance à un guard — simple vitrine qui oriente vers les 4 portails.
+      */}
+      <Route path="/" element={<LandingPage />} />
+
+      {/*
         Branche professionnelle et branche patient sont sœurs, jamais
         imbriquées : AuthProvider (staff) et PatientAuthProvider (patient)
         ne se retrouvent donc jamais dans le même sous-arbre React, ce qui
@@ -408,8 +415,6 @@ export default function App() {
           <Route path="/audit" element={<AuditRoute />} />
           <Route path="/parametres" element={<SettingsPage />} />
         </Route>
-
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Route>
 
       <Route path="/portail" element={<PatientAuthProvider><Outlet /></PatientAuthProvider>}>
