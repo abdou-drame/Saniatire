@@ -1,4 +1,4 @@
-import { Building2, ClipboardList, LogOut, Tags } from "lucide-react";
+import { BarChart3, Building2, ClipboardList, LogOut, Tags } from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { BRAND_NAME, BrandMark } from "@/components/brand/brand-logo";
 import { usePlatformAuth } from "@/hooks/use-platform-auth";
@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 const NAV_ITEMS = [
   { href: "/platform/structures", label: "Structures", icon: Building2 },
   { href: "/platform/formules", label: "Formules", icon: Tags },
+  { href: "/platform/stats", label: "Statistiques", icon: BarChart3 },
   { href: "/platform/audit", label: "Journal d'audit plateforme", icon: ClipboardList },
 ];
 

@@ -1601,3 +1601,56 @@ export interface PlatformAuditLogPage {
   from: number | null;
   to: number | null;
 }
+
+/**
+ * Livraison D — `GET /platform/structures/{id}/users` (paginator `{data, meta,
+ * links}`) : vue en lecture seule du personnel d'une structure. Les actions
+ * restent sur la carte Administrateurs.
+ */
+export interface PlatformStructureUser {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  roles: string[];
+  is_active: boolean;
+  is_locked: boolean;
+  locked_until: string | null;
+  last_login_at: string | null;
+}
+
+/**
+ * `GET /platform/structures/{id}/activity?days=N` : uniquement des compteurs —
+ * jamais le contenu du journal d'audit de la structure.
+ */
+export interface PlatformStructureActivity {
+  period: { from: string; to: string; days: number };
+  last_login_at: string | null;
+  users_total: number;
+  users_active: number;
+  users_logged_in_period: number;
+  actions_total: number;
+  actions_per_day: { date: string; count: number }[];
+}
+
+export interface PlatformStatsStructure {
+  id: number;
+  legal_name: string;
+  is_active: boolean;
+  is_archived: boolean;
+  users_active_30d: number;
+  patients: number;
+  consultations_per_month: { month: string; count: number }[];
+}
+
+/** `GET /platform/stats` : `months` = 6 mois "YYYY-MM", du plus ancien au plus récent. */
+export interface PlatformStats {
+  months: string[];
+  totals: {
+    structures: { total: number; active: number; inactive: number; archived: number };
+    users_active_30d: number;
+    patients: number;
+    consultations_this_month: number;
+  };
+  structures: PlatformStatsStructure[];
+}

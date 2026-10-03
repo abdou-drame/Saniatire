@@ -65,6 +65,7 @@ use App\Http\Controllers\Api\Platform\PlatformAuditLogController;
 use App\Http\Controllers\Api\Platform\PlatformAuthController;
 use App\Http\Controllers\Api\Platform\PlatformPlanController;
 use App\Http\Controllers\Api\Platform\PlatformStructureController;
+use App\Http\Controllers\Api\Platform\PlatformStructureInsightController;
 use App\Http\Controllers\Api\Platform\PlatformSubscriptionController;
 use App\Http\Controllers\Api\Platform\PlatformUserController;
 use App\Http\Controllers\Api\Platform\StructureModuleController as PlatformStructureModuleController;
@@ -238,6 +239,14 @@ Route::middleware('auth:platform')->prefix('platform')->group(function () {
     Route::post('/users/{user}/reset-password', [PlatformUserController::class, 'resetPassword'])->whereNumber('user');
 
     Route::get('/audit-logs', [PlatformAuditLogController::class, 'index']);
+
+    // Livraison D : supervision (personnel, activité, statistiques).
+    // Agrégats uniquement, filtre structure_id explicite dans
+    // PlatformStructureInsightController (TenantScope ne filtre rien sous
+    // ce guard). Structures archivées consultables (withTrashed()).
+    Route::get('/structures/{structure}/users', [PlatformStructureInsightController::class, 'users'])->withTrashed();
+    Route::get('/structures/{structure}/activity', [PlatformStructureInsightController::class, 'activity'])->withTrashed();
+    Route::get('/stats', [PlatformStructureInsightController::class, 'stats']);
 });
 
 Route::middleware(['auth:sanctum', 'tenant', 'two_factor', 'password_change', 'subscription'])->group(function () {

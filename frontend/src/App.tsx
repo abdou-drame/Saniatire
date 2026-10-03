@@ -82,6 +82,7 @@ import { PlatformStructuresPage } from "@/pages/platform/platform-structures-pag
 import { PlatformStructureDetailPage } from "@/pages/platform/platform-structure-detail-page";
 import { PlatformAuditPage } from "@/pages/platform/platform-audit-page";
 import { PlatformPlansPage } from "@/pages/platform/platform-plans-page";
+import { PlatformStatsPage } from "@/pages/platform/platform-stats-page";
 
 const RECEPTION_ROLES = ["secretaire", "administrateur", "direction", "directeur_medical"];
 /** Mirrors the backend's dashboards.direction permission grants (RolePermissionSeeder). */
@@ -493,6 +494,7 @@ export default function App() {
           <Route path="structures" element={<PlatformStructuresPage />} />
           <Route path="structures/:id" element={<PlatformStructureDetailPage />} />
           <Route path="formules" element={<PlatformPlansPage />} />
+          <Route path="stats" element={<PlatformStatsPage />} />
           <Route path="audit" element={<PlatformAuditPage />} />
           <Route index element={<Navigate to="structures" replace />} />
         </Route>

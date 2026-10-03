@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { StructureAdministratorsCard } from "@/components/platform/structure-administrators-card";
 import { StructureSubscriptionsCard } from "@/components/platform/structure-subscriptions-card";
+import { StructureActivityCard } from "@/components/platform/structure-activity-card";
+import { StructureUsersCard } from "@/components/platform/structure-users-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -180,6 +182,10 @@ export function PlatformStructureDetailPage() {
       {structureId && <StructureSubscriptionsCard structureId={structureId} readOnly={isArchived} />}
 
       {structureId && <StructureAdministratorsCard structureId={structureId} readOnly={isArchived} />}
+
+      {structureId && <StructureUsersCard structureId={structureId} />}
+
+      {structureId && <StructureActivityCard structureId={structureId} />}
 
       <Card>
         <CardHeader>
