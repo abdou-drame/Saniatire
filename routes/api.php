@@ -96,7 +96,14 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VoiceDictationController;
 use App\Http\Controllers\Api\WardController;
 use App\Http\Controllers\Api\WorkScheduleController;
+use App\Http\Controllers\Api\DexPayWebhookController;
+use App\Http\Controllers\Api\Platform\PlatformPaymentController;
+use App\Http\Controllers\Api\SubscriptionPaymentController;
 use Illuminate\Support\Facades\Route;
+
+// Webhook DexPay : public, authentifié uniquement par la signature HMAC
+// du corps brut (DexPayWebhookController). Aucun guard ni jeton.
+Route::post('/webhooks/dexpay', DexPayWebhookController::class)->middleware('throttle:120,1');
 
 Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
 Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
@@ -226,6 +233,9 @@ Route::middleware('auth:platform')->prefix('platform')->group(function () {
     Route::post('/structures/{structure}/subscriptions', [PlatformSubscriptionController::class, 'store'])->withTrashed();
     Route::post('/subscriptions/{subscription}/suspend', [PlatformSubscriptionController::class, 'suspend']);
     Route::post('/subscriptions/{subscription}/resume', [PlatformSubscriptionController::class, 'resume']);
+    // Paiement DexPay : session créée ici, période créée par le webhook.
+    Route::get('/structures/{structure}/payment-transactions', [PlatformPaymentController::class, 'index'])->withTrashed();
+    Route::post('/structures/{structure}/subscriptions/dexpay-checkout', [PlatformPaymentController::class, 'checkout'])->withTrashed();
 
     // Livraison C : comptes du personnel (modèle User uniquement). {user}
     // résolu à la main dans PlatformUserController (filtre structure_id
@@ -577,6 +587,10 @@ Route::middleware(['auth:sanctum', 'tenant', 'two_factor', 'password_change', 's
     Route::get('/auth/sessions', [SessionController::class, 'index']);
     Route::delete('/auth/sessions/{tokenId}', [SessionController::class, 'destroy']);
     Route::post('/auth/sessions/revoke-others', [SessionController::class, 'revokeOthers']);
+
+    // Renouvellement de l'abonnement par la structure (administrateur /
+    // direction), y compris en lecture seule : voir EnsureSubscriptionWritable.
+    Route::post('/subscription/dexpay-checkout', [SubscriptionPaymentController::class, 'checkout'])->middleware('throttle:10,1');
 
     // --- Étape 9 §3 : audit ---
 

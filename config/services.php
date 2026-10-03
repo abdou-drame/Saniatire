@@ -35,6 +35,24 @@ return [
         ],
     ],
 
+    // Paiement des abonnements (mobile money via DexPay). Le mode sandbox
+    // choisit l'URL de l'API ; les clés (pk_test_/sk_test_ ou
+    // pk_live_/sk_live_) doivent correspondre au même environnement. La
+    // clé secrète sert uniquement à vérifier la signature des webhooks.
+    'dexpay' => [
+        'public_key' => env('DEXPAY_PUBLIC_KEY'),
+        'secret_key' => env('DEXPAY_SECRET_KEY'),
+        'sandbox' => (bool) env('DEXPAY_SANDBOX', true),
+        'base_url' => env('DEXPAY_BASE_URL') ?: (env('DEXPAY_SANDBOX', true)
+            ? 'https://api-sandbox.dexpay.africa/api/v1'
+            : 'https://api.dexpay.africa/api/v1'),
+        // URL publique de notre webhook ; à défaut, déduite de la requête
+        // qui crée la session (hôte public du backend derrière le proxy).
+        'webhook_url' => env('DEXPAY_WEBHOOK_URL'),
+        // Retour du client après paiement : l'application de la structure.
+        'return_url' => env('DEXPAY_RETURN_URL') ?: env('FRONTEND_URL'),
+    ],
+
     // Étape 9 : assistance IA. Clé absente => AiProvider résout vers
     // SimulatedAiProvider (comportement dégradé, pas d'appel réseau).
     'anthropic' => [

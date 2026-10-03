@@ -24,6 +24,7 @@ class Subscription extends Model
         'starts_at',
         'ends_at',
         'status',
+        'billing_period',
         'notes',
         'created_by',
     ];

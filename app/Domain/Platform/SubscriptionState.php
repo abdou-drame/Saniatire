@@ -110,6 +110,11 @@ class SubscriptionState
             'status' => $this->subscription?->status,
             'ends_at' => $this->subscription?->ends_at?->toDateString(),
             'grace_ends_at' => $this->subscription ? self::graceEndsAt($this->subscription)->toDateString() : null,
+            // Bouton « Payer maintenant » : décidé ici, pas par le frontend.
+            'can_pay_online' => $alert
+                && $user->structure_id !== null
+                && $user->hasAnyRole(self::ALERTED_ROLES)
+                && ! isset(SubscriptionRenewal::selfServiceOffer($user->structure_id)['error']),
         ];
     }
 

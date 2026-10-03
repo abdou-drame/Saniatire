@@ -1,6 +1,7 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { BRAND_NAME } from "@/components/brand/brand-logo";
 import { Sidebar } from "@/components/layout/sidebar";
+import { SubscriptionBanner } from "@/components/layout/subscription-banner";
 import { Topbar } from "@/components/layout/topbar";
 import { navigationSections } from "@/config/navigation";
 import { roleLabel } from "@/config/role-labels";
@@ -57,20 +58,7 @@ export function AppLayout() {
             navigate(`/patients/${patient.id}`);
           }}
         />
-        {/* Texte et visibilité décidés par le backend (/auth/me) : la
-            lecture seule elle-même est appliquée côté serveur (423). */}
-        {user?.subscription?.alert && user.subscription.message && (
-          <div
-            role="alert"
-            className={
-              user.subscription.read_only
-                ? "border-b border-danger/30 bg-danger/10 px-6 py-2 text-sm text-danger"
-                : "border-b border-warning/30 bg-warning/10 px-6 py-2 text-sm text-warning"
-            }
-          >
-            {user.subscription.message}
-          </div>
-        )}
+        <SubscriptionBanner subscription={user?.subscription} />
         <main className="flex-1 overflow-y-auto p-6">
           <Outlet />
         </main>

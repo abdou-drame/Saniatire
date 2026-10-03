@@ -15,7 +15,9 @@ use Symfony\Component\HttpFoundation\Response;
  * recalculée ailleurs.
  *
  * Exceptions : la gestion de ses propres sessions et la déconnexion
- * restent possibles (sécurité du compte, pas une donnée de la structure).
+ * restent possibles (sécurité du compte, pas une donnée de la structure),
+ * de même que le paiement en ligne du renouvellement : c'est le moyen de
+ * sortir de la lecture seule.
  * 423 plutôt que 403 : ce n'est pas un défaut de permission du rôle, la
  * ressource est verrouillée jusqu'au renouvellement.
  */
@@ -23,6 +25,7 @@ class EnsureSubscriptionWritable
 {
     private const ALWAYS_ALLOWED = [
         'api/auth/sessions*',
+        'api/subscription/dexpay-checkout',
         'api/portail-patient/logout',
         'api/portail-prescripteur/logout',
     ];

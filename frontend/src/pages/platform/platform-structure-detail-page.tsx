@@ -21,6 +21,7 @@ import { PlatformInitials, PlatformNote } from "@/components/platform/platform-u
 import { StructureAdministratorsCard } from "@/components/platform/structure-administrators-card";
 import { structureTypeLabel } from "@/components/platform/structure-labels";
 import { StructureStatusBadge } from "@/components/platform/structure-status-badge";
+import { StructurePaymentsCard } from "@/components/platform/structure-payments-card";
 import { StructureSubscriptionsCard } from "@/components/platform/structure-subscriptions-card";
 import { StructureActivityCard } from "@/components/platform/structure-activity-card";
 import { StructureUsersCard } from "@/components/platform/structure-users-card";
@@ -336,8 +337,9 @@ export function PlatformStructureDetailPage() {
 
         <TabPanel tab="abonnement" active={tab}>
           <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-5">
-            <div className="min-w-0 xl:col-span-3">
+            <div className="min-w-0 space-y-6 xl:col-span-3">
               {structureId && <StructureSubscriptionsCard structureId={structureId} readOnly={isArchived} />}
+              {structureId && <StructurePaymentsCard structureId={structureId} readOnly={isArchived} />}
             </div>
 
             <Card className="min-w-0 xl:col-span-2">

@@ -68,6 +68,8 @@ export interface SubscriptionStatus {
   status: SubscriptionPeriodStatus | null;
   ends_at: string | null;
   grace_ends_at: string | null;
+  /** Bouton « Payer maintenant » de la bannière : décidé par le backend (rôle, formule payable en ligne). */
+  can_pay_online?: boolean;
 }
 
 export interface Plan {
@@ -90,6 +92,26 @@ export interface Subscription {
   notes: string | null;
   created_by_name?: string | null;
   created_at: string;
+}
+
+export type BillingPeriod = "monthly" | "annual";
+export type PaymentTransactionStatus = "en_attente" | "complete" | "echoue" | "annule";
+
+/** Session de paiement DexPay (PaymentTransactionResource) ; la période n'est créée que par le webhook. */
+export interface PaymentTransaction {
+  id: number;
+  reference: string;
+  plan_name?: string | null;
+  period: BillingPeriod;
+  amount: number;
+  currency: string;
+  status: PaymentTransactionStatus;
+  provider: string;
+  payment_url: string | null;
+  origin: "platform_admin" | "structure_admin";
+  subscription_id: number | null;
+  created_at: string;
+  updated_at: string;
 }
 
 /**

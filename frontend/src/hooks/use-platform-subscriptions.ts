@@ -1,6 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { platformApi } from "@/lib/platform-api";
-import type { Plan, Subscription, SubscriptionStateCode, SubscriptionPeriodStatus } from "@/types/api";
+import type {
+  BillingPeriod,
+  PaymentTransaction,
+  Plan,
+  Subscription,
+  SubscriptionStateCode,
+  SubscriptionPeriodStatus,
+} from "@/types/api";
 
 export function usePlatformPlans() {
   return useQuery({
@@ -99,5 +106,33 @@ export function useTogglePlatformSubscription(structureId: number) {
       return data.data;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["platform-subscriptions", structureId] }),
+  });
+}
+
+export function usePlatformPaymentTransactions(structureId: number | undefined) {
+  return useQuery({
+    queryKey: ["platform-payment-transactions", structureId],
+    queryFn: async () => {
+      const { data } = await platformApi.get<{ data: PaymentTransaction[] }>(
+        `/platform/structures/${structureId}/payment-transactions`,
+      );
+      return data.data;
+    },
+    enabled: Boolean(structureId),
+  });
+}
+
+/** Le montant n'est jamais envoyé : le backend le lit dans la grille des formules. */
+export function useCreateDexPayCheckout(structureId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { plan_id: number; period: BillingPeriod }) => {
+      const { data } = await platformApi.post<{ data: PaymentTransaction }>(
+        `/platform/structures/${structureId}/subscriptions/dexpay-checkout`,
+        input,
+      );
+      return data.data;
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["platform-payment-transactions", structureId] }),
   });
 }
