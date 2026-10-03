@@ -46,6 +46,48 @@ export interface AuthenticatedUser {
   permissions: string[];
   sites: Site[];
   structure_name?: string | null;
+  subscription?: SubscriptionStatus;
+}
+
+export type SubscriptionStateCode = "essai_ou_actif" | "en_grace" | "lecture_seule";
+export type SubscriptionPeriodStatus = "essai" | "active" | "suspendue" | "resiliee";
+
+/**
+ * État d'abonnement calculé par le backend (SubscriptionState) et exposé
+ * par /auth/me. Le frontend n'en recalcule rien : `alert` dit s'il faut
+ * afficher la bannière à CET utilisateur, `message` en donne le texte.
+ */
+export interface SubscriptionStatus {
+  state: SubscriptionStateCode;
+  read_only: boolean;
+  alert: boolean;
+  message: string | null;
+  plan_name: string | null;
+  status: SubscriptionPeriodStatus | null;
+  ends_at: string | null;
+  grace_ends_at: string | null;
+}
+
+export interface Plan {
+  id: number;
+  code: string;
+  name: string;
+  monthly_price_fcfa: number | null;
+  annual_price_fcfa: number | null;
+  is_active: boolean;
+}
+
+export interface Subscription {
+  id: number;
+  structure_id: number;
+  plan?: Plan;
+  starts_at: string;
+  ends_at: string;
+  grace_ends_at: string;
+  status: SubscriptionPeriodStatus;
+  notes: string | null;
+  created_by_name?: string | null;
+  created_at: string;
 }
 
 /**

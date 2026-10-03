@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Platform;
 use App\Domain\Structure\Models\Structure;
 use App\Domain\Structure\Models\StructureModule;
 use App\Domain\User\Models\User;
+use App\Http\Controllers\Api\Platform\Concerns\AuditsPlatformActions;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PlatformStructureStoreRequest;
 use App\Http\Requests\StructureRequest;
@@ -28,6 +29,8 @@ use Illuminate\Support\Str;
  */
 class PlatformStructureController extends Controller
 {
+    use AuditsPlatformActions;
+
     /**
      * Inclut les structures archivées (soft delete) : la plateforme garde
      * leur historique consultable, voir archive().
@@ -181,30 +184,5 @@ class PlatformStructureController extends Controller
     private function abortIfArchived(Structure $structure): void
     {
         abort_if($structure->trashed(), 409, 'Cette structure est archivée : elle reste consultable mais ne peut plus être modifiée.');
-    }
-
-    /**
-     * log_name distinct 'administration_plateforme', même patron que
-     * 'partage_inter_structure' pour le référencement inter-structures :
-     * chaque franchissement volontaire de l'isolation normale a sa propre
-     * trace explicite. structure_id forcé à la structure concernée par
-     * l'action (pas celle de l'acteur, qui n'en a pas) — sans ce tap(),
-     * Activity::creating ne renseignerait rien, TenantScope::currentStructureId()
-     * ne reconnaissant pas le guard platform.
-     */
-    private function auditPlatformAction(Request $request, $subject, int $structureId, string $action, array $properties = []): void
-    {
-        activity('administration_plateforme')
-            ->causedBy($request->user('platform'))
-            ->performedOn($subject)
-            ->withProperties([
-                ...$properties,
-                'action' => $action,
-                'hors_isolation' => true,
-            ])
-            ->tap(function ($activity) use ($structureId) {
-                $activity->structure_id = $structureId;
-            })
-            ->log("Action de l'administrateur de plateforme ({$action}), hors du cadre normal d'isolation par structure.");
     }
 }

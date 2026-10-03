@@ -1,6 +1,7 @@
 import { ArrowLeft, ListChecks, LoaderCircle } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { StructureSubscriptionsCard } from "@/components/platform/structure-subscriptions-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -167,6 +168,8 @@ export function PlatformStructureDetailPage() {
           ) : null}
         </CardContent>
       </Card>
+
+      {structureId && <StructureSubscriptionsCard structureId={structureId} readOnly={isArchived} />}
 
       <Card>
         <CardHeader>

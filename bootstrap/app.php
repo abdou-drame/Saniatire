@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureNoPendingPasswordChange;
+use App\Http\Middleware\EnsureSubscriptionWritable;
 use App\Http\Middleware\EnsureTenantContext;
 use App\Http\Middleware\EnsureTwoFactorSetupComplete;
 use Illuminate\Foundation\Application;
@@ -37,6 +38,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'tenant' => EnsureTenantContext::class,
             'two_factor' => EnsureTwoFactorSetupComplete::class,
             'password_change' => EnsureNoPendingPasswordChange::class,
+            'subscription' => EnsureSubscriptionWritable::class,
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,

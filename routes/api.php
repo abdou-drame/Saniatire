@@ -63,7 +63,9 @@ use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\PediatricRecordController;
 use App\Http\Controllers\Api\Platform\PlatformAuditLogController;
 use App\Http\Controllers\Api\Platform\PlatformAuthController;
+use App\Http\Controllers\Api\Platform\PlatformPlanController;
 use App\Http\Controllers\Api\Platform\PlatformStructureController;
+use App\Http\Controllers\Api\Platform\PlatformSubscriptionController;
 use App\Http\Controllers\Api\Platform\StructureModuleController as PlatformStructureModuleController;
 use App\Http\Controllers\Api\PmaRecordController;
 use App\Http\Controllers\Api\PractitionerController;
@@ -110,7 +112,7 @@ Route::post('/portail-patient/login', [PatientPortalAuthController::class, 'logi
 Route::post('/portail-patient/mot-de-passe-oublie', [PatientPortalAuthController::class, 'forgotPassword']);
 Route::post('/portail-patient/reinitialiser-mot-de-passe', [PatientPortalAuthController::class, 'resetPassword']);
 
-Route::middleware(['auth:patient', 'tenant:patient'])->prefix('portail-patient')->group(function () {
+Route::middleware(['auth:patient', 'tenant:patient', 'subscription:patient'])->prefix('portail-patient')->group(function () {
     Route::post('/logout', [PatientPortalAuthController::class, 'logout']);
     Route::get('/me', [PatientPortalAuthController::class, 'me']);
 
@@ -142,7 +144,7 @@ Route::post('/portail-prescripteur/login', [PrescriberPortalAuthController::clas
 Route::post('/portail-prescripteur/mot-de-passe-oublie', [PrescriberPortalAuthController::class, 'forgotPassword']);
 Route::post('/portail-prescripteur/reinitialiser-mot-de-passe', [PrescriberPortalAuthController::class, 'resetPassword']);
 
-Route::middleware(['auth:prescriber', 'tenant:prescriber'])->prefix('portail-prescripteur')->group(function () {
+Route::middleware(['auth:prescriber', 'tenant:prescriber', 'subscription:prescriber'])->prefix('portail-prescripteur')->group(function () {
     Route::post('/logout', [PrescriberPortalAuthController::class, 'logout']);
     Route::get('/me', [PrescriberPortalAuthController::class, 'me']);
 
@@ -203,10 +205,18 @@ Route::middleware('auth:platform')->prefix('platform')->group(function () {
     Route::get('/structures/{structure}/modules', [PlatformStructureModuleController::class, 'index'])->withTrashed();
     Route::patch('/structures/{structure}/modules/{module}', [PlatformStructureModuleController::class, 'update'])->withTrashed();
 
+    Route::get('/plans', [PlatformPlanController::class, 'index']);
+    Route::post('/plans', [PlatformPlanController::class, 'store']);
+    Route::patch('/plans/{plan}', [PlatformPlanController::class, 'update']);
+    Route::get('/structures/{structure}/subscriptions', [PlatformSubscriptionController::class, 'index'])->withTrashed();
+    Route::post('/structures/{structure}/subscriptions', [PlatformSubscriptionController::class, 'store'])->withTrashed();
+    Route::post('/subscriptions/{subscription}/suspend', [PlatformSubscriptionController::class, 'suspend']);
+    Route::post('/subscriptions/{subscription}/resume', [PlatformSubscriptionController::class, 'resume']);
+
     Route::get('/audit-logs', [PlatformAuditLogController::class, 'index']);
 });
 
-Route::middleware(['auth:sanctum', 'tenant', 'two_factor', 'password_change'])->group(function () {
+Route::middleware(['auth:sanctum', 'tenant', 'two_factor', 'password_change', 'subscription'])->group(function () {
     // Étape 15 : doit être déclarée avant l'apiResource ci-dessous — le
     // paramètre {structure} de sa route `show` matche n'importe quel
     // segment, donc /structures/directory serait intercepté par `show`
