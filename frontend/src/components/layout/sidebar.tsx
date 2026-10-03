@@ -9,6 +9,8 @@ export interface NavItem {
   icon: LucideIcon;
   /** Modules (clés ModuleCatalog) dont un seul actif suffit à afficher l'entrée ; absent = socle, toujours visible. */
   modules?: string[];
+  /** Rôles dont un seul suffit à afficher l'entrée ; absent = tous les rôles. */
+  roles?: string[];
 }
 
 export interface NavSection {

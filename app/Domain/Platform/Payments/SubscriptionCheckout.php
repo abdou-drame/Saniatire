@@ -46,8 +46,8 @@ class SubscriptionCheckout
                 'item_name' => "Abonnement Saliha Health — {$plan->name} ({$periodLabel}) — {$structure->legal_name}",
                 'amount' => $amount,
                 'currency' => 'XOF',
-                'success_url' => $returnUrl.'/dashboard?paiement=succes',
-                'failure_url' => $returnUrl.'/dashboard?paiement=echec',
+                'success_url' => $returnUrl.'/mon-abonnement?paiement=succes',
+                'failure_url' => $returnUrl.'/mon-abonnement?paiement=echec',
                 'webhook_url' => config('services.dexpay.webhook_url') ?: url('/api/webhooks/dexpay'),
                 // Un seul paiement par session : un renouvellement = une période.
                 'is_one_shot_payment' => true,

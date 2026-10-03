@@ -222,7 +222,7 @@ class DexPayPaymentTest extends TestCase
                 && $request['currency'] === 'XOF'
                 && $request['is_one_shot_payment'] === true
                 && $request['webhook_url'] === 'https://api.example.test/api/webhooks/dexpay'
-                && $request['success_url'] === 'https://app.example.test/dashboard?paiement=succes';
+                && $request['success_url'] === 'https://app.example.test/mon-abonnement?paiement=succes';
         });
         $this->assertSame(750000, PaymentTransaction::sole()->amount);
     }
@@ -503,6 +503,68 @@ class DexPayPaymentTest extends TestCase
         $this->assertTrue($me->json('data.subscription.can_pay_online') ?? $me->json('subscription.can_pay_online'));
 
         $this->staff($token, 'POST', '/api/subscription/dexpay-checkout')->assertCreated();
+    }
+
+    // --- Écran « Mon abonnement » --------------------------------------------
+
+    public function test_my_subscription_shows_terms_and_allows_paying_in_advance(): void
+    {
+        $this->fakeDexPay();
+        // Période en cours, loin de l'échéance : aucune bannière, mais
+        // l'écran reste consultable et le paiement anticipé possible.
+        $this->period($this->structure, '2026-01-01', '2026-12-31', 'pro');
+        $token = $this->staffToken($this->structure);
+
+        $this->staff($token, 'GET', '/api/subscription')
+            ->assertOk()
+            ->assertJsonPath('data.state', 'essai_ou_actif')
+            ->assertJsonPath('data.current.plan_name', $this->plan()->name)
+            ->assertJsonPath('data.current.billing_period', 'annual')
+            ->assertJsonPath('data.current.ends_at', '2026-12-31')
+            ->assertJsonPath('data.upcoming', null)
+            ->assertJsonPath('data.renewal.amount', 350000)
+            ->assertJsonPath('data.renewal.starts_at', '2027-01-01')
+            ->assertJsonPath('data.renewal.ends_at', '2027-12-31')
+            ->assertJsonPath('data.can_pay_online', true)
+            ->assertJsonPath('data.payments', []);
+
+        $this->staff($token, 'POST', '/api/subscription/dexpay-checkout')->assertCreated();
+        $transaction = PaymentTransaction::sole();
+        $this->webhook($this->event('checkout.completed', $transaction))->assertOk();
+
+        // La période payée d'avance apparaît comme « à venir », le
+        // renouvellement suivant s'enchaîne après elle.
+        $this->staff($token, 'GET', '/api/subscription')
+            ->assertOk()
+            ->assertJsonPath('data.current.ends_at', '2026-12-31')
+            ->assertJsonPath('data.upcoming.starts_at', '2027-01-01')
+            ->assertJsonPath('data.renewal.starts_at', '2028-01-01')
+            ->assertJsonPath('data.payments.0.status', 'complete')
+            ->assertJsonMissingPath('data.payments.0.raw_payload');
+    }
+
+    public function test_my_subscription_explains_why_online_payment_is_unavailable(): void
+    {
+        $this->period($this->structure, '2026-01-01', '2026-12-31', 'enterprise');
+        $token = $this->staffToken($this->structure);
+
+        $response = $this->staff($token, 'GET', '/api/subscription')
+            ->assertOk()
+            ->assertJsonPath('data.renewal', null)
+            ->assertJsonPath('data.can_pay_online', false);
+        $this->assertStringContainsString('pas de tarif en ligne', $response->json('data.unavailable_reason'));
+    }
+
+    public function test_my_subscription_is_reserved_to_admin_roles_and_own_structure(): void
+    {
+        $structureB = Structure::factory()->create();
+        $this->period($this->structure, '2026-01-01', '2026-12-31', 'pro');
+        $this->period($structureB, '2026-01-01', '2026-12-31', 'premium');
+
+        $this->staff($this->staffToken($this->structure, 'medecin'), 'GET', '/api/subscription')->assertForbidden();
+        $this->staff($this->staffToken($this->structure, 'direction'), 'GET', '/api/subscription')
+            ->assertOk()
+            ->assertJsonPath('data.current.plan_name', $this->plan()->name);
     }
 
     public function test_can_pay_online_is_false_for_other_roles_and_plans_on_quote(): void

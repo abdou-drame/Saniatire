@@ -28,7 +28,11 @@ export function AppLayout() {
   const sections = navigationSections
     .map((section) => ({
       ...section,
-      items: section.items.filter((item) => !item.modules || item.modules.some(hasModule)),
+      items: section.items.filter(
+        (item) =>
+          (!item.modules || item.modules.some(hasModule)) &&
+          (!item.roles || item.roles.some((role) => user?.roles.includes(role))),
+      ),
     }))
     .filter((section) => section.items.length > 0);
 

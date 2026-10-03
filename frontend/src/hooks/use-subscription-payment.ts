@@ -1,6 +1,6 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { PaymentTransaction } from "@/types/api";
+import type { MySubscription, PaymentTransaction } from "@/types/api";
 
 /**
  * Renouvellement en self-service : aucun paramètre, le backend reprend la
@@ -11,6 +11,16 @@ export function useSubscriptionSelfCheckout() {
   return useMutation({
     mutationFn: async () => {
       const { data } = await api.post<{ data: PaymentTransaction }>("/subscription/dexpay-checkout");
+      return data.data;
+    },
+  });
+}
+
+export function useMySubscription() {
+  return useQuery({
+    queryKey: ["my-subscription"],
+    queryFn: async () => {
+      const { data } = await api.get<{ data: MySubscription }>("/subscription");
       return data.data;
     },
   });

@@ -590,6 +590,7 @@ Route::middleware(['auth:sanctum', 'tenant', 'two_factor', 'password_change', 's
 
     // Renouvellement de l'abonnement par la structure (administrateur /
     // direction), y compris en lecture seule : voir EnsureSubscriptionWritable.
+    Route::get('/subscription', [SubscriptionPaymentController::class, 'show']);
     Route::post('/subscription/dexpay-checkout', [SubscriptionPaymentController::class, 'checkout'])->middleware('throttle:10,1');
 
     // --- Étape 9 §3 : audit ---

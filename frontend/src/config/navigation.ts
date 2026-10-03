@@ -7,6 +7,7 @@ import {
   CalendarDays,
   CalendarOff,
   ClipboardList,
+  CreditCard,
   FlaskConical,
   ArrowRightLeft,
   KeyRound,
@@ -70,6 +71,7 @@ export const navigationSections: NavSection[] = [
       { label: "Qualité & Réclamations", href: "/qualite", icon: ClipboardList, modules: ["qualite", "reclamations"] },
       { label: "Structures & sites", href: "/structures", icon: Building2 },
       { label: "Templates de notification", href: "/templates-notification", icon: Bell },
+      { label: "Mon abonnement", href: "/mon-abonnement", icon: CreditCard, roles: ["administrateur", "direction"] },
     ],
   },
   {

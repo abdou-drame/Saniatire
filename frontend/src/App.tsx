@@ -66,6 +66,7 @@ import { PrescriberResetPasswordPage } from "@/pages/portal-prescripteur/prescri
 import { ReceptionPage } from "@/pages/reception/reception-page";
 import { PersonnelRoute } from "@/pages/personnel/personnel-page";
 import { UserAccountsRoute } from "@/pages/comptes/user-accounts-page";
+import { MySubscriptionRoute } from "@/pages/subscription/my-subscription-page";
 import { ExternalPrescribersRoute } from "@/pages/prescripteurs/external-prescribers-page";
 import { PlanningsRoute } from "@/pages/plannings/plannings-page";
 import { CongesRoute } from "@/pages/conges/conges-page";
@@ -407,6 +408,7 @@ export default function App() {
           <Route path="/creances" element={<CreancesRoute />} />
           <Route path="/personnel" element={<PersonnelRoute />} />
           <Route path="/comptes-utilisateurs" element={<UserAccountsRoute />} />
+          <Route path="/mon-abonnement" element={<MySubscriptionRoute />} />
           <Route path="/prescripteurs-externes" element={<ExternalPrescribersRoute />} />
           <Route path="/plannings" element={<PlanningsRoute />} />
           <Route path="/conges" element={<CongesRoute />} />

@@ -1676,3 +1676,32 @@ export interface PlatformStats {
   };
   structures: PlatformStatsStructure[];
 }
+
+export interface MySubscriptionPeriod {
+  plan_name: string | null;
+  status: SubscriptionPeriodStatus;
+  billing_period: BillingPeriod;
+  starts_at: string;
+  ends_at: string;
+  grace_ends_at: string;
+}
+
+/** Écran « Mon abonnement » (GET /subscription), réservé à l'administrateur et à la direction. */
+export interface MySubscription {
+  state: SubscriptionStateCode;
+  read_only: boolean;
+  current: MySubscriptionPeriod | null;
+  /** Période déjà payée qui n'a pas encore commencé (paiement anticipé). */
+  upcoming: MySubscriptionPeriod | null;
+  renewal: {
+    plan_name: string;
+    period: BillingPeriod;
+    amount: number;
+    currency: string;
+    starts_at: string;
+    ends_at: string;
+  } | null;
+  can_pay_online: boolean;
+  unavailable_reason: string | null;
+  payments: PaymentTransaction[];
+}
