@@ -82,6 +82,48 @@ describe("StructurePaymentsCard", () => {
     expect(screen.getByRole("button", { name: /ouvrir/i })).toBeInTheDocument();
   });
 
+  async function generateLink() {
+    await userEvent.click(await screen.findByRole("button", { name: /générer un lien de paiement dexpay/i }));
+    await waitFor(() => expect(screen.getByRole("option", { name: /pro/i })).toBeInTheDocument());
+    await userEvent.selectOptions(screen.getByLabelText("Formule"), "2");
+    await userEvent.click(screen.getByRole("button", { name: /générer le lien/i }));
+    await screen.findByText("https://pay.dexpay.africa/checkout/SUB-3");
+  }
+
+  it("envoie le lien par email à l'adresse de la structure", async () => {
+    mockedPost.mockImplementation(async (url: string) =>
+      url.endsWith("/send-email")
+        ? { data: { data: { sent_to: "direction@clinique.sn" } } }
+        : { data: { data: { ...TRANSACTION, id: 2, status: "en_attente", origin: "platform_admin" } } },
+    );
+    renderCard();
+    await generateLink();
+
+    await userEvent.click(screen.getByRole("button", { name: /envoyer par email/i }));
+
+    expect(await screen.findByText("Lien envoyé à direction@clinique.sn.")).toBeInTheDocument();
+    expect(mockedPost).toHaveBeenCalledWith("/platform/structures/3/payment-transactions/2/send-email");
+    expect(screen.getByRole("button", { name: /envoyé/i })).toBeDisabled();
+  });
+
+  it("affiche l'erreur SMTP du serveur sans simuler de succès", async () => {
+    const smtpMessage = "L'email n'a pas pu être envoyé (serveur d'envoi indisponible).";
+    mockedPost.mockImplementation(async (url: string) => {
+      if (url.endsWith("/send-email")) {
+        throw { isAxiosError: true, response: { status: 503, data: { message: smtpMessage } } };
+      }
+      return { data: { data: { ...TRANSACTION, id: 2, status: "en_attente", origin: "platform_admin" } } };
+    });
+    renderCard();
+    await generateLink();
+
+    await userEvent.click(screen.getByRole("button", { name: /envoyer par email/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(smtpMessage);
+    expect(screen.queryByText(/lien envoyé à/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /envoyer par email/i })).toBeEnabled();
+  });
+
   it("masque la génération pour une structure archivée", async () => {
     renderCard(true);
     await screen.findByText("Payé");

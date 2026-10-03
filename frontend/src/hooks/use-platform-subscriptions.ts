@@ -136,3 +136,15 @@ export function useCreateDexPayCheckout(structureId: number) {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["platform-payment-transactions", structureId] }),
   });
 }
+
+/** Destinataire imposé par le backend : l'adresse enregistrée de la structure. */
+export function useSendDexPayLinkEmail(structureId: number) {
+  return useMutation({
+    mutationFn: async (transactionId: number) => {
+      const { data } = await platformApi.post<{ data: { sent_to: string } }>(
+        `/platform/structures/${structureId}/payment-transactions/${transactionId}/send-email`,
+      );
+      return data.data;
+    },
+  });
+}

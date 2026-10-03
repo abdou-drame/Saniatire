@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Domain\Platform\Mail\SubscriptionPaymentLinkMail;
 use App\Domain\Platform\Models\PaymentTransaction;
 use App\Domain\Platform\Models\Plan;
 use App\Domain\Platform\Models\PlatformAdmin;
@@ -15,8 +16,10 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Testing\TestResponse;
 use Spatie\Activitylog\Models\Activity;
+use Symfony\Component\Mailer\Exception\TransportException;
 use Tests\TestCase;
 
 /**
@@ -578,5 +581,89 @@ class DexPayPaymentTest extends TestCase
 
         $doctorMe = $this->staff($doctor, 'GET', '/api/auth/me')->assertOk();
         $this->assertFalse($doctorMe->json('data.subscription.can_pay_online') ?? $doctorMe->json('subscription.can_pay_online'));
+    }
+
+    private function linkTransaction(): PaymentTransaction
+    {
+        $transaction = $this->pendingTransaction();
+        $transaction->update(['payment_url' => 'https://pay.dexpay.africa/checkout/'.$transaction->reference]);
+
+        return $transaction;
+    }
+
+    public function test_platform_admin_emails_the_payment_link_to_the_structure_address(): void
+    {
+        Mail::fake();
+        $this->structure->update(['email' => 'direction@clinique-test.sn', 'legal_name' => 'Clinique Test Dakar', 'trade_name' => null]);
+        $transaction = $this->linkTransaction();
+
+        $this->platform('POST', "/api/platform/structures/{$this->structure->id}/payment-transactions/{$transaction->id}/send-email")
+            ->assertOk()
+            ->assertJsonPath('data.sent_to', 'direction@clinique-test.sn');
+
+        Mail::assertSent(SubscriptionPaymentLinkMail::class, function (SubscriptionPaymentLinkMail $mail) use ($transaction) {
+            $html = $mail->render();
+
+            return $mail->hasTo('direction@clinique-test.sn')
+                && $mail->hasSubject('Renouvellement de votre abonnement Saliha Health')
+                && str_contains($html, $transaction->payment_url)
+                && str_contains($html, 'Clinique Test Dakar')
+                && str_contains($html, '35 000 FCFA')
+                && str_contains($html, $this->plan()->name)
+                && str_contains($html, 'usage unique')
+                && str_contains($html, '16/10/2026 à 10:00');
+        });
+        Mail::assertSentCount(1);
+
+        $activity = Activity::where('log_name', 'administration_plateforme')
+            ->where('properties->action', 'envoi_lien_paiement_dexpay_email')
+            ->sole();
+        $this->assertSame($this->structure->id, (int) $activity->structure_id);
+        $this->assertSame('direction@clinique-test.sn', $activity->properties['destinataire']);
+        $this->assertSame($transaction->reference, $activity->properties['reference']);
+        $this->assertNotNull($activity->causer_id);
+    }
+
+    public function test_smtp_failure_returns_a_clear_error_and_is_not_audited(): void
+    {
+        $this->structure->update(['email' => 'direction@clinique-test.sn']);
+        $transaction = $this->linkTransaction();
+        $this->platform('GET', "/api/platform/structures/{$this->structure->id}/payment-transactions")->assertOk();
+
+        Mail::shouldReceive('to')->andThrow(new TransportException('Connection could not be established with host smtp'));
+
+        $this->platform('POST', "/api/platform/structures/{$this->structure->id}/payment-transactions/{$transaction->id}/send-email")
+            ->assertStatus(503)
+            ->assertJsonPath('message', "L'email n'a pas pu être envoyé (serveur d'envoi indisponible). Le lien n'a pas été transmis : réessayez plus tard ou copiez-le manuellement.");
+
+        $this->assertFalse(Activity::where('properties->action', 'envoi_lien_paiement_dexpay_email')->exists());
+    }
+
+    public function test_payment_link_email_is_refused_when_not_sendable(): void
+    {
+        Mail::fake();
+        $transaction = $this->linkTransaction();
+        $uri = "/api/platform/structures/{$this->structure->id}/payment-transactions/{$transaction->id}/send-email";
+
+        // Pas d'adresse enregistrée.
+        $this->structure->update(['email' => null]);
+        $this->platform('POST', $uri)->assertStatus(422);
+
+        // Transaction d'une autre structure.
+        $other = Structure::factory()->create();
+        $this->platform('POST', "/api/platform/structures/{$other->id}/payment-transactions/{$transaction->id}/send-email")->assertNotFound();
+
+        // Lien expiré (au-delà des 24 h DexPay).
+        $this->structure->update(['email' => 'direction@clinique-test.sn']);
+        $this->travel(25)->hours();
+        $this->platform('POST', $uri)->assertStatus(422)->assertJsonPath('message', "Ce lien de paiement a expiré : générez-en un nouveau avant de l'envoyer.");
+        $this->travelBack();
+        $this->travelTo(Carbon::parse('2026-10-15 11:00:00'));
+
+        // Paiement déjà traité.
+        $transaction->update(['status' => PaymentTransaction::STATUS_COMPLETED]);
+        $this->platform('POST', $uri)->assertStatus(422);
+
+        Mail::assertNothingSent();
     }
 }

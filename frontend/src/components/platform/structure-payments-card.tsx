@@ -1,4 +1,5 @@
-import { Check, Copy, CreditCard, ExternalLink, LoaderCircle, Link2 } from "lucide-react";
+import axios from "axios";
+import { Check, Copy, CreditCard, ExternalLink, LoaderCircle, Link2, Mail } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import {
   useCreateDexPayCheckout,
   usePlatformPaymentTransactions,
   usePlatformPlans,
+  useSendDexPayLinkEmail,
 } from "@/hooks/use-platform-subscriptions";
 import { apiErrorMessage } from "@/lib/api-error";
 import type { BillingPeriod, PaymentTransaction, PaymentTransactionStatus } from "@/types/api";
@@ -33,9 +35,25 @@ function formatDateTime(value: string): string {
   return new Date(value).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
 }
 
-function PaymentLinkPanel({ transaction }: { transaction: PaymentTransaction }) {
+/** Un 503 de l'envoi d'email porte un message précis (SMTP indisponible) que le libellé générique 5xx masquerait. */
+function sendEmailErrorMessage(error: unknown): string {
+  if (axios.isAxiosError(error) && error.response?.status === 503) {
+    const message = (error.response.data as { message?: string } | undefined)?.message;
+    if (message) return message;
+  }
+  return apiErrorMessage(error);
+}
+
+function PaymentLinkPanel({ structureId, transaction }: { structureId: number; transaction: PaymentTransaction }) {
   const [copied, setCopied] = useState(false);
+  const sendEmail = useSendDexPayLinkEmail(structureId);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const url = transaction.payment_url ?? "";
+
+  function handleSendEmail() {
+    setEmailError(null);
+    sendEmail.mutate(transaction.id, { onError: (err) => setEmailError(sendEmailErrorMessage(err)) });
+  }
 
   async function handleCopy() {
     try {
@@ -62,7 +80,33 @@ function PaymentLinkPanel({ transaction }: { transaction: PaymentTransaction }) 
           <ExternalLink size={14} />
           Ouvrir
         </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          onClick={handleSendEmail}
+          disabled={sendEmail.isPending || sendEmail.isSuccess}
+        >
+          {sendEmail.isPending ? (
+            <LoaderCircle size={14} className="animate-spin" />
+          ) : sendEmail.isSuccess ? (
+            <Check size={14} />
+          ) : (
+            <Mail size={14} />
+          )}
+          {sendEmail.isSuccess ? "Envoyé" : "Envoyer par email"}
+        </Button>
       </div>
+      {sendEmail.data && (
+        <p role="status" className="text-xs text-success">
+          Lien envoyé à {sendEmail.data.sent_to}.
+        </p>
+      )}
+      {emailError && (
+        <p role="alert" className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
+          {emailError}
+        </p>
+      )}
     </div>
   );
 }
@@ -92,7 +136,7 @@ function CheckoutForm({ structureId, onDone }: { structureId: number; onDone: ()
   if (checkout.data) {
     return (
       <div className="space-y-3 border-t border-border bg-surface-hover/30 p-4 sm:p-5">
-        <PaymentLinkPanel transaction={checkout.data} />
+        <PaymentLinkPanel structureId={structureId} transaction={checkout.data} />
         <div className="flex justify-end">
           <Button type="button" size="sm" variant="ghost" onClick={onDone}>
             Fermer

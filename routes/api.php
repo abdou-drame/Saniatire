@@ -236,6 +236,7 @@ Route::middleware('auth:platform')->prefix('platform')->group(function () {
     // Paiement DexPay : session créée ici, période créée par le webhook.
     Route::get('/structures/{structure}/payment-transactions', [PlatformPaymentController::class, 'index'])->withTrashed();
     Route::post('/structures/{structure}/subscriptions/dexpay-checkout', [PlatformPaymentController::class, 'checkout'])->withTrashed();
+    Route::post('/structures/{structure}/payment-transactions/{transaction}/send-email', [PlatformPaymentController::class, 'sendEmail'])->withTrashed();
 
     // Livraison C : comptes du personnel (modèle User uniquement). {user}
     // résolu à la main dans PlatformUserController (filtre structure_id
