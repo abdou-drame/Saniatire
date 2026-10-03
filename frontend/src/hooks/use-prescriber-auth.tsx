@@ -10,6 +10,7 @@ type PrescriberAuthContextValue = {
   prescriber: PrescriberUser | null;
   login: (token: string, prescriber: PrescriberUser) => void;
   logout: () => void;
+  hasModule: (module: string) => boolean;
 };
 
 const PrescriberAuthContext = createContext<PrescriberAuthContextValue | null>(null);
@@ -64,8 +65,13 @@ export function PrescriberAuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // Liste calculée par le backend (connexion et /me du portail) ; absente = tout actif.
+  function hasModule(module: string) {
+    return prescriber?.modules?.includes(module) ?? true;
+  }
+
   return (
-    <PrescriberAuthContext.Provider value={{ isAuthenticated, isLoading, prescriber, login, logout }}>
+    <PrescriberAuthContext.Provider value={{ isAuthenticated, isLoading, prescriber, login, logout, hasModule }}>
       {children}
     </PrescriberAuthContext.Provider>
   );

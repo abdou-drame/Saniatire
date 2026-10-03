@@ -3,9 +3,9 @@ import { platformApi } from "@/lib/platform-api";
 import type { StructureModule } from "@/types/api";
 
 /**
- * Cahier des charges §7 : uniquement la donnée et l'écran de bascule des
- * modules par structure — aucune autre partie de l'application n'est
- * branchée sur ce flag à ce stade, c'est normal (voir StructureModuleController).
+ * Livraison B : catalogue complet des modules d'une structure (socle +
+ * premium), tel que calculé par le backend (ModuleCatalog). La bascule se
+ * fait par clé de module ; un module du socle est refusé (422) côté serveur.
  */
 export function usePlatformStructureModules(structureId: number | undefined) {
   return useQuery({
@@ -23,9 +23,9 @@ export function usePlatformStructureModules(structureId: number | undefined) {
 export function useUpdatePlatformStructureModule(structureId: number) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ moduleId, isActive }: { moduleId: number; isActive: boolean }) => {
+    mutationFn: async ({ module, isActive }: { module: string; isActive: boolean }) => {
       const { data } = await platformApi.patch<{ data: StructureModule }>(
-        `/platform/structures/${structureId}/modules/${moduleId}`,
+        `/platform/structures/${structureId}/modules/${module}`,
         { is_active: isActive },
       );
       return data.data;

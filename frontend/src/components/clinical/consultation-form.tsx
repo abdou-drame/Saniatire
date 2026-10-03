@@ -154,7 +154,7 @@ export function ConsultationForm({
   onConsultationChange,
 }: ConsultationFormProps) {
   const queryClient = useQueryClient();
-  const { hasPermission } = useAuth();
+  const { hasPermission, hasModule } = useAuth();
   const [consultation, setConsultation] = useState<Consultation | null>(existingConsultation ?? null);
   const [form, setForm] = useState<FormState>(
     existingConsultation ? fromConsultation(existingConsultation) : emptyForm(),
@@ -167,12 +167,18 @@ export function ConsultationForm({
   const [admitDialogOpen, setAdmitDialogOpen] = useState(false);
   const [planProcedureDialogOpen, setPlanProcedureDialogOpen] = useState(false);
 
-  const canProposeHospitalisation = hasPermission("hospitalisation.create");
-  const canProposeIntervention = hasPermission("bloc_operatoire.create");
+  // Livraison B : laboratoire, imagerie, hospitalisation et bloc sont des
+  // modules premium ; leurs cartes (et requêtes) disparaissent avec eux.
+  const hasLaboratoire = hasModule("laboratoire");
+  const hasImagerie = hasModule("imagerie");
+  const hasHospitalisation = hasModule("hospitalisation");
+  const hasBloc = hasModule("bloc_operatoire");
+  const canProposeHospitalisation = hasHospitalisation && hasPermission("hospitalisation.create");
+  const canProposeIntervention = hasBloc && hasPermission("bloc_operatoire.create");
   const canGenerateAiSummary = hasPermission("ai.consultation_summary");
   const canViewAnomalies = hasPermission("ai.anomaly_detection");
-  const activeHospitalizationsQuery = useHospitalizations({ patientId, status: "en_cours" });
-  const surgicalProceduresQuery = useSurgicalProcedures({ patientId });
+  const activeHospitalizationsQuery = useHospitalizations({ patientId, status: "en_cours" }, hasHospitalisation);
+  const surgicalProceduresQuery = useSurgicalProcedures({ patientId }, hasBloc);
   const hasActiveHospitalization = (activeHospitalizationsQuery.data?.data.length ?? 0) > 0;
   const hasActiveProcedure = (surgicalProceduresQuery.data?.data ?? []).some(
     (p) => p.status === "planifiee" || p.status === "en_cours",
@@ -477,61 +483,65 @@ export function ConsultationForm({
 
       {consultation && canViewAnomalies && <AnomalyAlertCard consultationId={consultation.id} />}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Laboratoire</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {consultation ? (
-            <>
-              <Button variant="secondary" size="sm" onClick={() => setLabDialogOpen(true)}>
-                <FlaskConical size={14} />
-                Prescrire une analyse
-              </Button>
-              <PrescribeLabOrderDialog
-                open={labDialogOpen}
-                onOpenChange={setLabDialogOpen}
-                patientId={patientId}
-                fixedSiteId={effectiveSiteId}
-                practitionerId={practitionerId}
-                consultationId={consultation.id}
-              />
-            </>
-          ) : (
-            <p className="text-xs text-text-subtle">
-              Créez d'abord la consultation pour pouvoir y prescrire une analyse.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      {hasLaboratoire && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Laboratoire</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {consultation ? (
+              <>
+                <Button variant="secondary" size="sm" onClick={() => setLabDialogOpen(true)}>
+                  <FlaskConical size={14} />
+                  Prescrire une analyse
+                </Button>
+                <PrescribeLabOrderDialog
+                  open={labDialogOpen}
+                  onOpenChange={setLabDialogOpen}
+                  patientId={patientId}
+                  fixedSiteId={effectiveSiteId}
+                  practitionerId={practitionerId}
+                  consultationId={consultation.id}
+                />
+              </>
+            ) : (
+              <p className="text-xs text-text-subtle">
+                Créez d'abord la consultation pour pouvoir y prescrire une analyse.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Imagerie</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {consultation ? (
-            <>
-              <Button variant="secondary" size="sm" onClick={() => setImagingDialogOpen(true)}>
-                <Scan size={14} />
-                Prescrire un examen d'imagerie
-              </Button>
-              <PrescribeImagingOrderDialog
-                open={imagingDialogOpen}
-                onOpenChange={setImagingDialogOpen}
-                patientId={patientId}
-                fixedSiteId={effectiveSiteId}
-                practitionerId={practitionerId}
-                consultationId={consultation.id}
-              />
-            </>
-          ) : (
-            <p className="text-xs text-text-subtle">
-              Créez d'abord la consultation pour pouvoir y prescrire un examen d'imagerie.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      {hasImagerie && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Imagerie</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {consultation ? (
+              <>
+                <Button variant="secondary" size="sm" onClick={() => setImagingDialogOpen(true)}>
+                  <Scan size={14} />
+                  Prescrire un examen d'imagerie
+                </Button>
+                <PrescribeImagingOrderDialog
+                  open={imagingDialogOpen}
+                  onOpenChange={setImagingDialogOpen}
+                  patientId={patientId}
+                  fixedSiteId={effectiveSiteId}
+                  practitionerId={practitionerId}
+                  consultationId={consultation.id}
+                />
+              </>
+            ) : (
+              <p className="text-xs text-text-subtle">
+                Créez d'abord la consultation pour pouvoir y prescrire un examen d'imagerie.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {canProposeHospitalisation && (
         <Card>

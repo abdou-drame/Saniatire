@@ -266,7 +266,7 @@ class StructureSuspensionAndLoginThrottleTest extends TestCase
     {
         $platformAdmin = $this->makePlatformAdmin();
         $structure = Structure::factory()->create();
-        $module = $structure->modules()->create(['module' => 'laboratoire', 'is_active' => true]);
+        $structure->modules()->create(['module' => 'laboratoire', 'is_active' => true]);
         $staffToken = User::factory()->for($structure)->create()->createToken('api')->plainTextToken;
 
         $this->actingAs($platformAdmin, 'platform')
@@ -299,7 +299,7 @@ class StructureSuspensionAndLoginThrottleTest extends TestCase
         foreach (['activate', 'deactivate', 'archive'] as $action) {
             $this->postJson("/api/platform/structures/{$structure->id}/{$action}")->assertStatus(409);
         }
-        $this->patchJson("/api/platform/structures/{$structure->id}/modules/{$module->id}", ['is_active' => false])
+        $this->patchJson("/api/platform/structures/{$structure->id}/modules/laboratoire", ['is_active' => false])
             ->assertStatus(409);
         $this->assertFalse(Structure::withTrashed()->find($structure->id)->is_active);
 

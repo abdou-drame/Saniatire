@@ -14,9 +14,10 @@ export interface HospitalizationFilters {
   status?: HospitalizationStatus;
 }
 
-export function useHospitalizations(filters: HospitalizationFilters) {
+export function useHospitalizations(filters: HospitalizationFilters, enabled = true) {
   return useQuery({
     queryKey: ["hospitalizations", filters],
+    enabled,
     queryFn: async () => {
       const { data } = await api.get<Paginated<Hospitalization>>("/hospitalizations", {
         params: {

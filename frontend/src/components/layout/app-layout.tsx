@@ -19,8 +19,17 @@ function currentPageTitle(pathname: string): string {
 export function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, hasModule } = useAuth();
   const search = usePatientSearch();
+
+  // Livraison B : entrées des modules coupés masquées (la liste vient de
+  // /auth/me, le backend refuse de toute façon leurs routes).
+  const sections = navigationSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => !item.modules || item.modules.some(hasModule)),
+    }))
+    .filter((section) => section.items.length > 0);
 
   function handleLogout() {
     logout();
@@ -29,7 +38,7 @@ export function AppLayout() {
 
   return (
     <div className="flex h-screen bg-bg">
-      <Sidebar sections={navigationSections} />
+      <Sidebar sections={sections} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar
           title={currentPageTitle(location.pathname)}

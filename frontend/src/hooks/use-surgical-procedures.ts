@@ -13,9 +13,10 @@ export interface SurgicalProcedureFilters {
   status?: SurgicalProcedureStatus;
 }
 
-export function useSurgicalProcedures(filters: SurgicalProcedureFilters) {
+export function useSurgicalProcedures(filters: SurgicalProcedureFilters, enabled = true) {
   return useQuery({
     queryKey: ["surgical-procedures", filters],
+    enabled,
     queryFn: async () => {
       const { data } = await api.get<Paginated<SurgicalProcedure>>("/surgical-procedures", {
         params: {

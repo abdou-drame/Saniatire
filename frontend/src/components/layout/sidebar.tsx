@@ -7,6 +7,8 @@ export interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;
+  /** Modules (clés ModuleCatalog) dont un seul actif suffit à afficher l'entrée ; absent = socle, toujours visible. */
+  modules?: string[];
 }
 
 export interface NavSection {

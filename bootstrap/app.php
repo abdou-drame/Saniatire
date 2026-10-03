@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureModuleActive;
 use App\Http\Middleware\EnsureNoPendingPasswordChange;
 use App\Http\Middleware\EnsureSubscriptionWritable;
 use App\Http\Middleware\EnsureTenantContext;
@@ -39,6 +40,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'two_factor' => EnsureTwoFactorSetupComplete::class,
             'password_change' => EnsureNoPendingPasswordChange::class,
             'subscription' => EnsureSubscriptionWritable::class,
+            'module' => EnsureModuleActive::class,
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,

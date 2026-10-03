@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Platform\ModuleCatalog;
 use App\Domain\Prescripteur\Models\ExternalPrescriber;
 use App\Domain\Shared\Auth\PortalActivationService;
 use App\Domain\Structure\Models\Structure;
@@ -49,11 +50,17 @@ class PrescriberPortalAuthController extends Controller
             return response()->json(['message' => $reason], 403);
         }
 
+        // Livraison B : portail coupé par la plateforme pour cette structure
+        // (module `prescripteurs`), même traitement qu'une structure suspendue.
+        if (! ModuleCatalog::isActiveFor($prescriber->structure_id, 'prescripteurs')) {
+            return response()->json(['message' => ModuleCatalog::inactiveMessage('prescripteurs')], 403);
+        }
+
         $token = $prescriber->createToken('prescriber-portal')->plainTextToken;
 
         return response()->json([
             'token' => $token,
-            'prescriber' => new ExternalPrescriberResource($prescriber),
+            'prescriber' => (new ExternalPrescriberResource($prescriber))->withModules(),
         ]);
     }
 
@@ -66,7 +73,7 @@ class PrescriberPortalAuthController extends Controller
 
     public function me(Request $request): ExternalPrescriberResource
     {
-        return new ExternalPrescriberResource($request->user('prescriber'));
+        return (new ExternalPrescriberResource($request->user('prescriber')))->withModules();
     }
 
     public function forgotPassword(Request $request): JsonResponse

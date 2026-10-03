@@ -10,6 +10,7 @@ type PatientAuthContextValue = {
   patient: PatientUser | null;
   login: (token: string, patient: PatientUser) => void;
   logout: () => void;
+  hasModule: (module: string) => boolean;
 };
 
 const PatientAuthContext = createContext<PatientAuthContextValue | null>(null);
@@ -64,8 +65,13 @@ export function PatientAuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // Liste calculée par le backend (connexion et /me du portail) ; absente = tout actif.
+  function hasModule(module: string) {
+    return patient?.modules?.includes(module) ?? true;
+  }
+
   return (
-    <PatientAuthContext.Provider value={{ isAuthenticated, isLoading, patient, login, logout }}>
+    <PatientAuthContext.Provider value={{ isAuthenticated, isLoading, patient, login, logout, hasModule }}>
       {children}
     </PatientAuthContext.Provider>
   );

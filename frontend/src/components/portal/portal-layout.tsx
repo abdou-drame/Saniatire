@@ -4,16 +4,16 @@ import { BRAND_NAME, BrandMark } from "@/components/brand/brand-logo";
 import { usePatientAuth } from "@/hooks/use-patient-auth";
 import { cn } from "@/lib/utils";
 
-const NAV_ITEMS = [
+const NAV_ITEMS: { href: string; label: string; icon: typeof CalendarDays; module?: string }[] = [
   { href: "/portail/rendez-vous", label: "Mes rendez-vous", icon: CalendarDays },
   { href: "/portail/documents", label: "Mes documents", icon: FileText },
   { href: "/portail/factures", label: "Mes factures", icon: Receipt },
-  { href: "/portail/reclamations", label: "Mes réclamations", icon: MessageSquareWarning },
+  { href: "/portail/reclamations", label: "Mes réclamations", icon: MessageSquareWarning, module: "reclamations" },
   { href: "/portail/preferences", label: "Mes préférences", icon: Settings },
 ];
 
 export function PortalLayout() {
-  const { patient, logout } = usePatientAuth();
+  const { patient, logout, hasModule } = usePatientAuth();
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -44,7 +44,7 @@ export function PortalLayout() {
           </button>
         </div>
         <nav className="mx-auto flex max-w-3xl gap-1 overflow-x-auto px-4 pb-2">
-          {NAV_ITEMS.map((item) => (
+          {NAV_ITEMS.filter((item) => !item.module || hasModule(item.module)).map((item) => (
             <NavLink
               key={item.href}
               to={item.href}

@@ -18,11 +18,13 @@ import { useAuth } from "@/hooks/use-auth";
  * Grille de widgets indépendants, chacun gardé par la permission backend
  * exacte de son endpoint (jamais par nom de rôle) et rendu avec son propre
  * état loading/erreur — un widget en erreur n'affecte jamais les autres.
- * `OnCallWidget` n'a pas de garde : /on-call/now est ouvert à tout
- * utilisateur authentifié (urgence), donc la grille n'est jamais vide.
+ * `OnCallWidget` n'a pas de garde de permission : /on-call/now est ouvert
+ * à tout utilisateur authentifié (urgence). Livraison B : les widgets des
+ * modules premium (RH, stock, biomédical, achats, réclamations) suivent en
+ * plus l'activation du module, sinon leur endpoint répond 403.
  */
 export function DashboardPage() {
-  const { user, hasPermission } = useAuth();
+  const { user, hasPermission, hasModule } = useAuth();
 
   return (
     <div className="space-y-6">
@@ -49,12 +51,12 @@ export function DashboardPage() {
         {hasPermission("appointments.view") && <TodayAppointmentsWidget />}
         {hasPermission("queue.view") && <QueueWidget />}
         {hasPermission("caisse.view") && <CashSessionWidget />}
-        {hasPermission("conges.validate") && <LeaveRequestsWidget />}
-        <OnCallWidget />
-        {hasPermission("stock.view") && <StockAlertsWidget />}
-        {hasPermission("biomedical.view") && <EquipmentMaintenanceWidget />}
-        {hasPermission("achats.view") && <PurchaseOrdersWidget />}
-        {hasPermission("reclamations.manage_all") && <ComplaintsWidget />}
+        {hasModule("rh") && hasPermission("conges.validate") && <LeaveRequestsWidget />}
+        {hasModule("rh") && <OnCallWidget />}
+        {hasModule("stock") && hasPermission("stock.view") && <StockAlertsWidget />}
+        {hasModule("biomedical") && hasPermission("biomedical.view") && <EquipmentMaintenanceWidget />}
+        {hasModule("achats") && hasPermission("achats.view") && <PurchaseOrdersWidget />}
+        {hasModule("reclamations") && hasPermission("reclamations.manage_all") && <ComplaintsWidget />}
       </div>
     </div>
   );

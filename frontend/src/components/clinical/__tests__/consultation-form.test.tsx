@@ -14,7 +14,7 @@ vi.mock("@/lib/api", () => ({
 // opératoire) n'est nécessaire à ces tests, et les désactiver évite de
 // devoir aussi simuler leurs appels réseau propres.
 vi.mock("@/hooks/use-auth", () => ({
-  useAuth: () => ({ hasPermission: () => false, hasRole: () => false }),
+  useAuth: () => ({ hasPermission: () => false, hasRole: () => false, hasModule: () => true }),
 }));
 
 const mockedGet = vi.mocked(api.get);

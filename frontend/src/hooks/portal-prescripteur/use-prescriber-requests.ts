@@ -2,9 +2,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { prescriberApi } from "@/lib/prescriber-api";
 import type { PrescriberImagingOrder, PrescriberLabOrder } from "@/types/api";
 
-export function usePrescriberLabOrders() {
+export function usePrescriberLabOrders(enabled = true) {
   return useQuery({
     queryKey: ["prescriber-demandes-labo"],
+    enabled,
     queryFn: async () => {
       const { data } = await prescriberApi.get<{ data: PrescriberLabOrder[] }>("/portail-prescripteur/demandes-labo");
       return data.data;
@@ -12,9 +13,10 @@ export function usePrescriberLabOrders() {
   });
 }
 
-export function usePrescriberImagingOrders() {
+export function usePrescriberImagingOrders(enabled = true) {
   return useQuery({
     queryKey: ["prescriber-demandes-imagerie"],
+    enabled,
     queryFn: async () => {
       const { data } = await prescriberApi.get<{ data: PrescriberImagingOrder[] }>(
         "/portail-prescripteur/demandes-imagerie",

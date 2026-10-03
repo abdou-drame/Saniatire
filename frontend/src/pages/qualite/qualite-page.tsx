@@ -20,9 +20,12 @@ import { useAuth } from "@/hooks/use-auth";
  * toujours rendue, son périmètre étant déjà assuré côté serveur par
  * ComplaintController::index (portée à l'utilisateur courant sans
  * reclamations.manage_all).
+ *
+ * Livraison B : Satisfaction et Réclamations sont deux modules distincts
+ * (qualite / reclamations) ; chaque section disparaît avec son module.
  */
 export function QualitePage() {
-  const { hasPermission } = useAuth();
+  const { hasPermission, hasModule } = useAuth();
 
   return (
     <div className="space-y-6">
@@ -34,8 +37,8 @@ export function QualitePage() {
       </div>
 
       {hasPermission("dashboards.qualite") && <QualiteOverviewSection />}
-      {hasPermission("qualite.view") && <SatisfactionSection />}
-      <ComplaintsSection />
+      {hasModule("qualite") && hasPermission("qualite.view") && <SatisfactionSection />}
+      {hasModule("reclamations") && <ComplaintsSection />}
     </div>
   );
 }

@@ -28,7 +28,7 @@ import type { UserAccount } from "@/types/api";
  * l'administrateur détient users.delete côté backend.
  */
 export function UserAccountsPage() {
-  const { hasPermission } = useAuth();
+  const { hasPermission, hasModule } = useAuth();
   const canCreate = hasPermission("users.create");
   const canUpdate = hasPermission("users.update");
 
@@ -201,7 +201,7 @@ export function UserAccountsPage() {
         open={formOpen}
         onOpenChange={setFormOpen}
         account={editingAccount}
-        onRequestEmployeeProfile={hasPermission("rh.create") ? (userId) => setRhDialogUserId(userId) : undefined}
+        onRequestEmployeeProfile={hasModule("rh") && hasPermission("rh.create") ? (userId) => setRhDialogUserId(userId) : undefined}
       />
 
       {rhDialogUserId !== null && (

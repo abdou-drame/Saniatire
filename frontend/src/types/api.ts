@@ -47,6 +47,8 @@ export interface AuthenticatedUser {
   sites: Site[];
   structure_name?: string | null;
   subscription?: SubscriptionStatus;
+  /** Clés des modules actifs de la structure, calculées par le backend (ModuleCatalog). */
+  modules?: string[];
 }
 
 export type SubscriptionStateCode = "essai_ou_actif" | "en_grace" | "lecture_seule";
@@ -393,6 +395,8 @@ export interface PatientUser {
   portal_activated_at: string | null;
   created_at: string;
   updated_at: string;
+  /** Modules actifs de la structure, renvoyés à la connexion et par /me. */
+  modules?: string[];
 }
 
 export type InvoiceStatus = "brouillon" | "emise" | "partiellement_payee" | "payee" | "annulee";
@@ -637,6 +641,8 @@ export interface PrescriberUser {
   portal_activated_at: string | null;
   created_at: string;
   updated_at: string;
+  /** Modules actifs de la structure, renvoyés à la connexion et par /me. */
+  modules?: string[];
 }
 
 export interface PrescriberPatientSearchResult {
@@ -1489,10 +1495,14 @@ export interface Structure {
   updated_at: string;
 }
 
+/**
+ * Entrée du catalogue renvoyé par la plateforme (ModuleCatalog) : socle
+ * toujours actif et non désactivable, premium actif sauf coupure explicite.
+ */
 export interface StructureModule {
-  id: number;
-  structure_id: number;
   module: string;
+  label: string;
+  is_core: boolean;
   is_active: boolean;
   activated_at: string | null;
   deactivated_at: string | null;

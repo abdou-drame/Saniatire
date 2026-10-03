@@ -10,7 +10,9 @@ const NAV_ITEMS = [
 ];
 
 export function PrescriberPortalLayout() {
-  const { prescriber, logout } = usePrescriberAuth();
+  const { prescriber, logout, hasModule } = usePrescriberAuth();
+  // Livraison B : sans laboratoire ni imagerie, aucune demande possible.
+  const navItems = hasModule("laboratoire") || hasModule("imagerie") ? NAV_ITEMS : [];
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -41,7 +43,7 @@ export function PrescriberPortalLayout() {
           </button>
         </div>
         <nav className="mx-auto flex max-w-3xl gap-1 overflow-x-auto px-4 pb-2">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <NavLink
               key={item.href}
               to={item.href}

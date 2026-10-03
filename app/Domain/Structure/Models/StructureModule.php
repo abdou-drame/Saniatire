@@ -8,10 +8,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * Cahier des charges §7 : statut actif/inactif d'un module pour une
  * structure donnée. Géré exclusivement par l'administration plateforme
- * (App\Http\Controllers\Api\Platform\StructureModuleController) — aucune
- * lecture n'est branchée ailleurs dans l'application à ce stade, c'est
- * volontaire (voir le prompt d'origine : la donnée et l'écran seulement,
- * pas l'activation réelle). Pas de BelongsToTenant : ce n'est pas une
+ * (App\Http\Controllers\Api\Platform\StructureModuleController) et lu
+ * uniquement via App\Domain\Platform\ModuleCatalog, seule source de la
+ * règle d'activation (pas de ligne = module actif). Pas de BelongsToTenant : ce n'est pas une
  * donnée d'une structure gérée par elle-même, mais une donnée sur une
  * structure gérée par la plateforme.
  */

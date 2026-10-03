@@ -53,7 +53,7 @@ class PatientPortalAuthController extends Controller
 
         return response()->json([
             'token' => $token,
-            'patient' => new PatientResource($patient),
+            'patient' => (new PatientResource($patient))->withModules(),
         ]);
     }
 
@@ -66,7 +66,7 @@ class PatientPortalAuthController extends Controller
 
     public function me(Request $request): PatientResource
     {
-        return new PatientResource($request->user('patient'));
+        return (new PatientResource($request->user('patient')))->withModules();
     }
 
     public function forgotPassword(Request $request): JsonResponse

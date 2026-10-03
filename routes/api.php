@@ -129,9 +129,11 @@ Route::middleware(['auth:patient', 'tenant:patient', 'subscription:patient'])->p
     Route::get('/solde', [PatientPortalController::class, 'solde']);
     Route::get('/documents', [PatientPortalController::class, 'documents']);
 
-    Route::get('/reclamations', [PatientPortalController::class, 'complaints']);
-    Route::get('/reclamations/{complaint}', [PatientPortalController::class, 'complaint']);
-    Route::post('/reclamations', [PatientPortalController::class, 'storeComplaint']);
+    Route::middleware('module:reclamations')->group(function () {
+        Route::get('/reclamations', [PatientPortalController::class, 'complaints']);
+        Route::get('/reclamations/{complaint}', [PatientPortalController::class, 'complaint']);
+        Route::post('/reclamations', [PatientPortalController::class, 'storeComplaint']);
+    });
 
     Route::get('/preferences-notification', [NotificationPreferenceController::class, 'show']);
     Route::put('/preferences-notification', [NotificationPreferenceController::class, 'update']);
@@ -144,18 +146,28 @@ Route::post('/portail-prescripteur/login', [PrescriberPortalAuthController::clas
 Route::post('/portail-prescripteur/mot-de-passe-oublie', [PrescriberPortalAuthController::class, 'forgotPassword']);
 Route::post('/portail-prescripteur/reinitialiser-mot-de-passe', [PrescriberPortalAuthController::class, 'resetPassword']);
 
+// Livraison B : le portail entier dépend du module `prescripteurs` de la
+// structure (401 + motif, voir EnsureModuleActive), sauf la déconnexion ;
+// les demandes dépendent en plus du module du plateau concerné.
 Route::middleware(['auth:prescriber', 'tenant:prescriber', 'subscription:prescriber'])->prefix('portail-prescripteur')->group(function () {
     Route::post('/logout', [PrescriberPortalAuthController::class, 'logout']);
-    Route::get('/me', [PrescriberPortalAuthController::class, 'me']);
 
-    Route::get('/sites', [PrescriberPortalController::class, 'sites']);
-    Route::get('/loinc-codes', [PrescriberPortalController::class, 'loincCodes']);
-    Route::get('/patients', [PrescriberPortalController::class, 'patients']);
+    Route::middleware('module:prescripteurs')->group(function () {
+        Route::get('/me', [PrescriberPortalAuthController::class, 'me']);
 
-    Route::post('/demandes-labo', [PrescriberPortalController::class, 'storeDemandeLabo']);
-    Route::get('/demandes-labo', [PrescriberPortalController::class, 'demandesLabo']);
-    Route::post('/demandes-imagerie', [PrescriberPortalController::class, 'storeDemandeImagerie']);
-    Route::get('/demandes-imagerie', [PrescriberPortalController::class, 'demandesImagerie']);
+        Route::get('/sites', [PrescriberPortalController::class, 'sites']);
+        Route::get('/loinc-codes', [PrescriberPortalController::class, 'loincCodes']);
+        Route::get('/patients', [PrescriberPortalController::class, 'patients']);
+
+        Route::middleware('module:laboratoire')->group(function () {
+            Route::post('/demandes-labo', [PrescriberPortalController::class, 'storeDemandeLabo']);
+            Route::get('/demandes-labo', [PrescriberPortalController::class, 'demandesLabo']);
+        });
+        Route::middleware('module:imagerie')->group(function () {
+            Route::post('/demandes-imagerie', [PrescriberPortalController::class, 'storeDemandeImagerie']);
+            Route::get('/demandes-imagerie', [PrescriberPortalController::class, 'demandesImagerie']);
+        });
+    });
 });
 
 // Étape 9 §2 : ce groupe reste volontairement hors du middleware
@@ -223,7 +235,7 @@ Route::middleware(['auth:sanctum', 'tenant', 'two_factor', 'password_change', 's
     // (et gardé sur structures.view au lieu de referrals.create) si
     // enregistrée après. Voir StructureController::directory() ; utilisée
     // par le picker de destination du bloc patient-referrals plus bas.
-    Route::get('/structures/directory', [StructureController::class, 'directory']);
+    Route::get('/structures/directory', [StructureController::class, 'directory'])->middleware('module:referrals');
     // Étape Administration plateforme : store() retiré — seule
     // PlatformStructureController::store() (guard `platform`) peut créer
     // une structure, voir bloc /platform/* ci-dessus. Faille fermée :
@@ -262,144 +274,190 @@ Route::middleware(['auth:sanctum', 'tenant', 'two_factor', 'password_change', 's
     Route::get('/loinc-codes', [LoincCodeController::class, 'index']);
     Route::get('/loinc-codes/{loincCode}', [LoincCodeController::class, 'show']);
 
-    Route::get('/lab-orders/stats', [LabOrderController::class, 'stats']);
-    Route::apiResource('lab-orders', LabOrderController::class)->only(['index', 'store', 'show', 'update']);
-    Route::post('/lab-orders/{labOrder}/cancel', [LabOrderController::class, 'cancel']);
-    Route::post('/lab-orders/{labOrder}/samples', [LabSampleController::class, 'store']);
-    Route::post('/lab-samples/{labSample}/results', [LabResultController::class, 'store']);
-    Route::patch('/lab-results/{labResult}/validate-technique', [LabResultController::class, 'validateTechnique']);
-    Route::patch('/lab-results/{labResult}/validate-biologique', [LabResultController::class, 'validateBiologique']);
-    Route::patch('/lab-results/{labResult}/transmit', [LabResultController::class, 'transmit']);
+    // Livraison B : chaque bloc premium ci-dessous est gardé par
+    // `module:<clé>` (EnsureModuleActive, règle dans ModuleCatalog). Les
+    // routes du socle restent hors de tout groupe `module`.
 
-    Route::get('/imaging-orders/stats', [ImagingOrderController::class, 'stats']);
-    Route::apiResource('imaging-orders', ImagingOrderController::class)->only(['index', 'store', 'show', 'update']);
-    Route::post('/imaging-orders/{imagingOrder}/cancel', [ImagingOrderController::class, 'cancel']);
-    Route::post('/imaging-orders/{imagingOrder}/studies', [ImagingStudyController::class, 'store']);
-    Route::patch('/imaging-studies/{imagingStudy}/transmit', [ImagingStudyController::class, 'transmit']);
-    Route::post('/imaging-studies/{imagingStudy}/report', [ImagingReportController::class, 'store']);
-    Route::patch('/imaging-reports/{imagingReport}/validate', [ImagingReportController::class, 'validateReport']);
+    Route::middleware('module:laboratoire')->group(function () {
+        Route::get('/lab-orders/stats', [LabOrderController::class, 'stats']);
+        Route::apiResource('lab-orders', LabOrderController::class)->only(['index', 'store', 'show', 'update']);
+        Route::post('/lab-orders/{labOrder}/cancel', [LabOrderController::class, 'cancel']);
+        Route::post('/lab-orders/{labOrder}/samples', [LabSampleController::class, 'store']);
+        Route::post('/lab-samples/{labSample}/results', [LabResultController::class, 'store']);
+        Route::patch('/lab-results/{labResult}/validate-technique', [LabResultController::class, 'validateTechnique']);
+        Route::patch('/lab-results/{labResult}/validate-biologique', [LabResultController::class, 'validateBiologique']);
+        Route::patch('/lab-results/{labResult}/transmit', [LabResultController::class, 'transmit']);
+    });
 
-    Route::get('/wards/occupancy-stats', [WardController::class, 'occupancyStats']);
-    Route::apiResource('wards', WardController::class)->only(['index', 'store', 'show', 'update']);
-    Route::apiResource('beds', BedController::class)->only(['index', 'store', 'show', 'update']);
+    Route::middleware('module:imagerie')->group(function () {
+        Route::get('/imaging-orders/stats', [ImagingOrderController::class, 'stats']);
+        Route::apiResource('imaging-orders', ImagingOrderController::class)->only(['index', 'store', 'show', 'update']);
+        Route::post('/imaging-orders/{imagingOrder}/cancel', [ImagingOrderController::class, 'cancel']);
+        Route::post('/imaging-orders/{imagingOrder}/studies', [ImagingStudyController::class, 'store']);
+        Route::patch('/imaging-studies/{imagingStudy}/transmit', [ImagingStudyController::class, 'transmit']);
+        Route::post('/imaging-studies/{imagingStudy}/report', [ImagingReportController::class, 'store']);
+        Route::patch('/imaging-reports/{imagingReport}/validate', [ImagingReportController::class, 'validateReport']);
+    });
 
-    Route::get('/hospitalizations/stats', [HospitalizationController::class, 'stats']);
-    Route::apiResource('hospitalizations', HospitalizationController::class)->only(['index', 'store', 'show']);
-    Route::post('/hospitalizations/{hospitalization}/discharge', [HospitalizationController::class, 'discharge']);
-    Route::post('/hospitalizations/{hospitalization}/daily-notes', [HospitalizationController::class, 'storeDailyNote']);
+    Route::middleware('module:hospitalisation')->group(function () {
+        Route::get('/wards/occupancy-stats', [WardController::class, 'occupancyStats']);
+        Route::apiResource('wards', WardController::class)->only(['index', 'store', 'show', 'update']);
+        Route::apiResource('beds', BedController::class)->only(['index', 'store', 'show', 'update']);
 
-    Route::apiResource('surgical-procedures', SurgicalProcedureController::class)->only(['index', 'store', 'show']);
-    Route::post('/surgical-procedures/{surgicalProcedure}/start', [SurgicalProcedureController::class, 'start']);
-    Route::post('/surgical-procedures/{surgicalProcedure}/complete', [SurgicalProcedureController::class, 'complete']);
-    Route::post('/surgical-procedures/{surgicalProcedure}/cancel', [SurgicalProcedureController::class, 'cancel']);
-    Route::post('/surgical-procedures/{surgicalProcedure}/checklist/{step}', [SurgicalProcedureController::class, 'submitChecklistStep'])
-        ->whereIn('step', ['avant_anesthesie', 'avant_incision', 'avant_sortie_bloc']);
+        Route::get('/hospitalizations/stats', [HospitalizationController::class, 'stats']);
+        Route::apiResource('hospitalizations', HospitalizationController::class)->only(['index', 'store', 'show']);
+        Route::post('/hospitalizations/{hospitalization}/discharge', [HospitalizationController::class, 'discharge']);
+        Route::post('/hospitalizations/{hospitalization}/daily-notes', [HospitalizationController::class, 'storeDailyNote']);
+    });
+
+    Route::middleware('module:bloc_operatoire')->group(function () {
+        Route::apiResource('surgical-procedures', SurgicalProcedureController::class)->only(['index', 'store', 'show']);
+        Route::post('/surgical-procedures/{surgicalProcedure}/start', [SurgicalProcedureController::class, 'start']);
+        Route::post('/surgical-procedures/{surgicalProcedure}/complete', [SurgicalProcedureController::class, 'complete']);
+        Route::post('/surgical-procedures/{surgicalProcedure}/cancel', [SurgicalProcedureController::class, 'cancel']);
+        Route::post('/surgical-procedures/{surgicalProcedure}/checklist/{step}', [SurgicalProcedureController::class, 'submitChecklistStep'])
+            ->whereIn('step', ['avant_anesthesie', 'avant_incision', 'avant_sortie_bloc']);
+    });
 
     // --- Étape 4a : spécialités (architecture générique validée sur
     // maternité, dentaire, dialyse — voir App\Domain\Shared\Specialty) ---
 
-    Route::get('/maternite-stats', [MaternityRecordController::class, 'stats']);
-    Route::apiResource('maternity-records', MaternityRecordController::class)->only(['index', 'store', 'show', 'update']);
-    Route::post('/maternity-records/{maternityRecord}/prenatal-visits', [MaternityRecordController::class, 'storePrenatalVisit']);
-    Route::post('/maternity-records/{maternityRecord}/partogram', [MaternityRecordController::class, 'storePartogram']);
-    Route::post('/maternity-partograms/{partogram}/readings', [MaternityRecordController::class, 'storePartogramReading']);
-    Route::post('/maternity-records/{maternityRecord}/delivery', [MaternityRecordController::class, 'storeDelivery']);
-    Route::post('/maternity-deliveries/{delivery}/newborns', [MaternityRecordController::class, 'storeNewborn']);
-    Route::post('/maternity-records/{maternityRecord}/postpartum-visits', [MaternityRecordController::class, 'storePostpartumVisit']);
+    Route::middleware('module:maternite')->group(function () {
+        Route::get('/maternite-stats', [MaternityRecordController::class, 'stats']);
+        Route::apiResource('maternity-records', MaternityRecordController::class)->only(['index', 'store', 'show', 'update']);
+        Route::post('/maternity-records/{maternityRecord}/prenatal-visits', [MaternityRecordController::class, 'storePrenatalVisit']);
+        Route::post('/maternity-records/{maternityRecord}/partogram', [MaternityRecordController::class, 'storePartogram']);
+        Route::post('/maternity-partograms/{partogram}/readings', [MaternityRecordController::class, 'storePartogramReading']);
+        Route::post('/maternity-records/{maternityRecord}/delivery', [MaternityRecordController::class, 'storeDelivery']);
+        Route::post('/maternity-deliveries/{delivery}/newborns', [MaternityRecordController::class, 'storeNewborn']);
+        Route::post('/maternity-records/{maternityRecord}/postpartum-visits', [MaternityRecordController::class, 'storePostpartumVisit']);
+    });
 
-    Route::get('/dentaire-stats', [DentalChartController::class, 'stats']);
-    Route::apiResource('dental-charts', DentalChartController::class)->only(['index', 'store', 'show']);
-    Route::put('/dental-charts/{dentalChart}/teeth/{fdi}', [DentalChartController::class, 'updateToothState'])
-        ->whereIn('fdi', FdiNumbering::validCodes());
-    Route::post('/dental-charts/{dentalChart}/procedures', [DentalChartController::class, 'storeProcedure']);
-    Route::post('/dental-charts/{dentalChart}/treatment-plans', [DentalChartController::class, 'storeTreatmentPlan']);
-    Route::post('/dental-treatment-plans/{treatmentPlan}/items', [DentalChartController::class, 'storeTreatmentPlanItem']);
-    Route::patch('/dental-treatment-plan-items/{item}', [DentalChartController::class, 'updateTreatmentPlanItem']);
+    Route::middleware('module:dentaire')->group(function () {
+        Route::get('/dentaire-stats', [DentalChartController::class, 'stats']);
+        Route::apiResource('dental-charts', DentalChartController::class)->only(['index', 'store', 'show']);
+        Route::put('/dental-charts/{dentalChart}/teeth/{fdi}', [DentalChartController::class, 'updateToothState'])
+            ->whereIn('fdi', FdiNumbering::validCodes());
+        Route::post('/dental-charts/{dentalChart}/procedures', [DentalChartController::class, 'storeProcedure']);
+        Route::post('/dental-charts/{dentalChart}/treatment-plans', [DentalChartController::class, 'storeTreatmentPlan']);
+        Route::post('/dental-treatment-plans/{treatmentPlan}/items', [DentalChartController::class, 'storeTreatmentPlanItem']);
+        Route::patch('/dental-treatment-plan-items/{item}', [DentalChartController::class, 'updateTreatmentPlanItem']);
+    });
 
-    Route::get('/dialyse-stats', [DialysisProgramController::class, 'stats']);
-    Route::apiResource('dialysis-programs', DialysisProgramController::class)->only(['index', 'store', 'show', 'update']);
-    Route::post('/dialysis-programs/{dialysisProgram}/sessions', [DialysisProgramController::class, 'storeSession']);
-    Route::post('/dialysis-sessions/{session}/vitals', [DialysisProgramController::class, 'storeSessionVital']);
+    Route::middleware('module:dialyse')->group(function () {
+        Route::get('/dialyse-stats', [DialysisProgramController::class, 'stats']);
+        Route::apiResource('dialysis-programs', DialysisProgramController::class)->only(['index', 'store', 'show', 'update']);
+        Route::post('/dialysis-programs/{dialysisProgram}/sessions', [DialysisProgramController::class, 'storeSession']);
+        Route::post('/dialysis-sessions/{session}/vitals', [DialysisProgramController::class, 'storeSessionVital']);
+    });
 
     // --- Étape 4b : spécialités restantes (même architecture générique) ---
 
-    Route::get('/ophtalmo-stats', [OphtalmoRecordController::class, 'stats']);
-    Route::apiResource('ophtalmo-records', OphtalmoRecordController::class)->only(['index', 'store', 'show', 'update']);
+    Route::middleware('module:ophtalmo')->group(function () {
+        Route::get('/ophtalmo-stats', [OphtalmoRecordController::class, 'stats']);
+        Route::apiResource('ophtalmo-records', OphtalmoRecordController::class)->only(['index', 'store', 'show', 'update']);
+    });
 
-    Route::get('/cardiologie-stats', [CardioRecordController::class, 'stats']);
-    Route::apiResource('cardio-records', CardioRecordController::class)->only(['index', 'store', 'show', 'update']);
-    Route::post('/cardio-records/{cardioRecord}/readings', [CardioRecordController::class, 'storeReading']);
-    Route::post('/cardio-records/{cardioRecord}/ecg-results', [CardioRecordController::class, 'storeEcgResult']);
+    Route::middleware('module:cardiologie')->group(function () {
+        Route::get('/cardiologie-stats', [CardioRecordController::class, 'stats']);
+        Route::apiResource('cardio-records', CardioRecordController::class)->only(['index', 'store', 'show', 'update']);
+        Route::post('/cardio-records/{cardioRecord}/readings', [CardioRecordController::class, 'storeReading']);
+        Route::post('/cardio-records/{cardioRecord}/ecg-results', [CardioRecordController::class, 'storeEcgResult']);
+    });
 
-    Route::get('/kinesitherapie-stats', [KineProgramController::class, 'stats']);
-    Route::apiResource('kine-programs', KineProgramController::class)->only(['index', 'store', 'show', 'update']);
-    Route::post('/kine-programs/{kineProgram}/sessions', [KineProgramController::class, 'storeSession']);
+    Route::middleware('module:kinesitherapie')->group(function () {
+        Route::get('/kinesitherapie-stats', [KineProgramController::class, 'stats']);
+        Route::apiResource('kine-programs', KineProgramController::class)->only(['index', 'store', 'show', 'update']);
+        Route::post('/kine-programs/{kineProgram}/sessions', [KineProgramController::class, 'storeSession']);
+    });
 
-    Route::get('/oncologie-stats', [OncoRecordController::class, 'stats']);
-    Route::apiResource('onco-records', OncoRecordController::class)->only(['index', 'store', 'show', 'update']);
-    Route::post('/onco-records/{oncoRecord}/chemo-cycles', [OncoRecordController::class, 'storeChemoCycle']);
-    Route::post('/onco-records/{oncoRecord}/response-evaluations', [OncoRecordController::class, 'storeResponseEvaluation']);
+    Route::middleware('module:oncologie')->group(function () {
+        Route::get('/oncologie-stats', [OncoRecordController::class, 'stats']);
+        Route::apiResource('onco-records', OncoRecordController::class)->only(['index', 'store', 'show', 'update']);
+        Route::post('/onco-records/{oncoRecord}/chemo-cycles', [OncoRecordController::class, 'storeChemoCycle']);
+        Route::post('/onco-records/{oncoRecord}/response-evaluations', [OncoRecordController::class, 'storeResponseEvaluation']);
+    });
 
-    Route::get('/pma-stats', [PmaRecordController::class, 'stats']);
-    Route::apiResource('pma-records', PmaRecordController::class)->only(['index', 'store', 'show', 'update']);
-    Route::post('/pma-records/{pmaRecord}/stimulation-protocols', [PmaRecordController::class, 'storeStimulationProtocol']);
-    Route::post('/pma-records/{pmaRecord}/cycle-monitorings', [PmaRecordController::class, 'storeCycleMonitoring']);
+    Route::middleware('module:pma')->group(function () {
+        Route::get('/pma-stats', [PmaRecordController::class, 'stats']);
+        Route::apiResource('pma-records', PmaRecordController::class)->only(['index', 'store', 'show', 'update']);
+        Route::post('/pma-records/{pmaRecord}/stimulation-protocols', [PmaRecordController::class, 'storeStimulationProtocol']);
+        Route::post('/pma-records/{pmaRecord}/cycle-monitorings', [PmaRecordController::class, 'storeCycleMonitoring']);
+    });
 
-    Route::get('/sante-mentale-stats', [MentalHealthRecordController::class, 'stats']);
-    Route::apiResource('mental-health-records', MentalHealthRecordController::class)->only(['index', 'store', 'show', 'update']);
-    Route::post('/mental-health-records/{mentalHealthRecord}/scale-scores', [MentalHealthRecordController::class, 'storeScaleScore']);
+    Route::middleware('module:sante_mentale')->group(function () {
+        Route::get('/sante-mentale-stats', [MentalHealthRecordController::class, 'stats']);
+        Route::apiResource('mental-health-records', MentalHealthRecordController::class)->only(['index', 'store', 'show', 'update']);
+        Route::post('/mental-health-records/{mentalHealthRecord}/scale-scores', [MentalHealthRecordController::class, 'storeScaleScore']);
+    });
 
-    Route::get('/pediatrie-stats', [PediatricRecordController::class, 'stats']);
-    Route::apiResource('pediatric-records', PediatricRecordController::class)->only(['index', 'store', 'show', 'update']);
-    Route::post('/pediatric-records/{pediatricRecord}/growth-measurements', [PediatricRecordController::class, 'storeGrowthMeasurement']);
-    Route::post('/pediatric-records/{pediatricRecord}/vaccinations', [PediatricRecordController::class, 'storeVaccination']);
-    Route::post('/pediatric-records/{pediatricRecord}/development-observations', [PediatricRecordController::class, 'storeDevelopmentObservation']);
+    Route::middleware('module:pediatrie')->group(function () {
+        Route::get('/pediatrie-stats', [PediatricRecordController::class, 'stats']);
+        Route::apiResource('pediatric-records', PediatricRecordController::class)->only(['index', 'store', 'show', 'update']);
+        Route::post('/pediatric-records/{pediatricRecord}/growth-measurements', [PediatricRecordController::class, 'storeGrowthMeasurement']);
+        Route::post('/pediatric-records/{pediatricRecord}/vaccinations', [PediatricRecordController::class, 'storeVaccination']);
+        Route::post('/pediatric-records/{pediatricRecord}/development-observations', [PediatricRecordController::class, 'storeDevelopmentObservation']);
+    });
 
-    Route::get('/medecine-travail-stats', [OccupationalHealthRecordController::class, 'stats']);
-    Route::apiResource('occupational-health-records', OccupationalHealthRecordController::class)->only(['index', 'store', 'show', 'update']);
+    Route::middleware('module:medecine_travail')->group(function () {
+        Route::get('/medecine-travail-stats', [OccupationalHealthRecordController::class, 'stats']);
+        Route::apiResource('occupational-health-records', OccupationalHealthRecordController::class)->only(['index', 'store', 'show', 'update']);
+    });
 
-    Route::get('/soins-domicile-stats', [HomeCareRecordController::class, 'stats']);
-    Route::apiResource('home-care-records', HomeCareRecordController::class)->only(['index', 'store', 'show', 'update']);
-    Route::post('/home-care-records/{homeCareRecord}/visits', [HomeCareRecordController::class, 'storeVisit']);
+    Route::middleware('module:soins_domicile')->group(function () {
+        Route::get('/soins-domicile-stats', [HomeCareRecordController::class, 'stats']);
+        Route::apiResource('home-care-records', HomeCareRecordController::class)->only(['index', 'store', 'show', 'update']);
+        Route::post('/home-care-records/{homeCareRecord}/visits', [HomeCareRecordController::class, 'storeVisit']);
+    });
 
     // --- Étape 5a : pharmacie, stocks, achats, équipements biomédicaux ---
 
-    Route::apiResource('products', ProductController::class);
-    Route::apiResource('product-batches', ProductBatchController::class)->only(['index', 'store', 'show', 'update']);
-    Route::apiResource('stock-thresholds', StockThresholdController::class);
-    Route::get('/stock/alerts/low-threshold', [StockAlertController::class, 'lowThreshold']);
-    Route::get('/stock/alerts/expiry', [StockAlertController::class, 'expiry']);
-    Route::apiResource('stock-movements', StockMovementController::class)->only(['index', 'store']);
+    Route::middleware('module:stock')->group(function () {
+        Route::apiResource('products', ProductController::class);
+        Route::apiResource('product-batches', ProductBatchController::class)->only(['index', 'store', 'show', 'update']);
+        Route::apiResource('stock-thresholds', StockThresholdController::class);
+        Route::get('/stock/alerts/low-threshold', [StockAlertController::class, 'lowThreshold']);
+        Route::get('/stock/alerts/expiry', [StockAlertController::class, 'expiry']);
+        Route::apiResource('stock-movements', StockMovementController::class)->only(['index', 'store']);
+    });
 
-    Route::apiResource('suppliers', SupplierController::class);
-    Route::apiResource('purchase-requests', PurchaseRequestController::class)->only(['index', 'store', 'show']);
-    Route::post('/purchase-requests/{purchaseRequest}/approve', [PurchaseRequestController::class, 'approve']);
-    Route::post('/purchase-requests/{purchaseRequest}/reject', [PurchaseRequestController::class, 'reject']);
+    Route::middleware('module:achats')->group(function () {
+        Route::apiResource('suppliers', SupplierController::class);
+        Route::apiResource('purchase-requests', PurchaseRequestController::class)->only(['index', 'store', 'show']);
+        Route::post('/purchase-requests/{purchaseRequest}/approve', [PurchaseRequestController::class, 'approve']);
+        Route::post('/purchase-requests/{purchaseRequest}/reject', [PurchaseRequestController::class, 'reject']);
 
-    Route::apiResource('approval-rules', ApprovalRuleController::class);
+        Route::apiResource('approval-rules', ApprovalRuleController::class);
 
-    Route::apiResource('purchase-orders', PurchaseOrderController::class)->only(['index', 'store', 'show']);
-    Route::post('/purchase-orders/{purchaseOrder}/submit', [PurchaseOrderController::class, 'submit']);
-    Route::post('/purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve']);
-    Route::post('/purchase-orders/{purchaseOrder}/cancel', [PurchaseOrderController::class, 'cancel']);
-    Route::post('/purchase-order-items/{purchaseOrderItem}/receptions', [PurchaseOrderReceptionController::class, 'store']);
+        Route::apiResource('purchase-orders', PurchaseOrderController::class)->only(['index', 'store', 'show']);
+        Route::post('/purchase-orders/{purchaseOrder}/submit', [PurchaseOrderController::class, 'submit']);
+        Route::post('/purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve']);
+        Route::post('/purchase-orders/{purchaseOrder}/cancel', [PurchaseOrderController::class, 'cancel']);
+        Route::post('/purchase-order-items/{purchaseOrderItem}/receptions', [PurchaseOrderReceptionController::class, 'store']);
+    });
 
-    Route::get('/equipment-maintenances/upcoming', [EquipmentMaintenanceController::class, 'upcoming']);
-    Route::get('/equipment-maintenances/overdue', [EquipmentMaintenanceController::class, 'overdue']);
-    Route::apiResource('biomedical-equipment', BiomedicalEquipmentController::class);
-    Route::apiResource('equipment-maintenances', EquipmentMaintenanceController::class)->only(['index', 'store', 'show', 'update']);
+    Route::middleware('module:biomedical')->group(function () {
+        Route::get('/equipment-maintenances/upcoming', [EquipmentMaintenanceController::class, 'upcoming']);
+        Route::get('/equipment-maintenances/overdue', [EquipmentMaintenanceController::class, 'overdue']);
+        Route::apiResource('biomedical-equipment', BiomedicalEquipmentController::class);
+        Route::apiResource('equipment-maintenances', EquipmentMaintenanceController::class)->only(['index', 'store', 'show', 'update']);
+    });
 
     // --- Étape 5b : facturation, caisse, assurances, créances ---
 
     Route::apiResource('service-tariffs', ServiceTariffController::class);
     Route::get('/billable-items', [BillableItemController::class, 'index']);
 
-    Route::apiResource('insurance-providers', InsuranceProviderController::class);
-    Route::apiResource('insurance-conventions', InsuranceConventionController::class);
-    Route::post('/insurance-conventions/{insuranceConvention}/coverage-rules', [InsuranceConventionController::class, 'storeCoverageRule']);
-    Route::patch('/insurance-convention-coverage-rules/{insuranceConventionCoverageRule}', [InsuranceConventionCoverageRuleController::class, 'update']);
-    Route::delete('/insurance-convention-coverage-rules/{insuranceConventionCoverageRule}', [InsuranceConventionCoverageRuleController::class, 'destroy']);
-    Route::apiResource('patient-insurance-coverages', PatientInsuranceCoverageController::class);
+    // Finance avancée : un seul module commercial pour assurances/tiers-payant
+    // et créances (balance âgée et son export plus bas).
+    Route::middleware('module:finance_avancee')->group(function () {
+        Route::apiResource('insurance-providers', InsuranceProviderController::class);
+        Route::apiResource('insurance-conventions', InsuranceConventionController::class);
+        Route::post('/insurance-conventions/{insuranceConvention}/coverage-rules', [InsuranceConventionController::class, 'storeCoverageRule']);
+        Route::patch('/insurance-convention-coverage-rules/{insuranceConventionCoverageRule}', [InsuranceConventionCoverageRuleController::class, 'update']);
+        Route::delete('/insurance-convention-coverage-rules/{insuranceConventionCoverageRule}', [InsuranceConventionCoverageRuleController::class, 'destroy']);
+        Route::apiResource('patient-insurance-coverages', PatientInsuranceCoverageController::class);
+    });
 
     Route::apiResource('invoices', InvoiceController::class)->only(['index', 'store', 'show']);
     Route::post('/invoices/{invoice}/emit', [InvoiceController::class, 'emit']);
@@ -414,21 +472,25 @@ Route::middleware(['auth:sanctum', 'tenant', 'two_factor', 'password_change', 's
 
     Route::apiResource('payments', PaymentController::class)->only(['index', 'store']);
 
-    Route::get('/creances/balance-agee', [CreancesController::class, 'balanceAgee']);
+    Route::get('/creances/balance-agee', [CreancesController::class, 'balanceAgee'])->middleware('module:finance_avancee');
 
     // --- Étape 6 : RH (personnel, plannings, gardes/astreintes, congés) ---
+    // Les congés font partie du module RH (option à la carte), pas du socle
+    // « comptes utilisateurs ».
 
-    Route::apiResource('employee-profiles', EmployeeProfileController::class)->only(['index', 'store', 'show', 'update']);
+    Route::middleware('module:rh')->group(function () {
+        Route::apiResource('employee-profiles', EmployeeProfileController::class)->only(['index', 'store', 'show', 'update']);
 
-    Route::apiResource('work-schedules', WorkScheduleController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
-    Route::get('/employees/{user}/planning', [WorkScheduleController::class, 'planning']);
+        Route::apiResource('work-schedules', WorkScheduleController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
+        Route::get('/employees/{user}/planning', [WorkScheduleController::class, 'planning']);
 
-    Route::get('/on-call', [OnCallController::class, 'index']);
-    Route::get('/on-call/now', [OnCallController::class, 'now']);
+        Route::get('/on-call', [OnCallController::class, 'index']);
+        Route::get('/on-call/now', [OnCallController::class, 'now']);
 
-    Route::apiResource('leave-requests', LeaveRequestController::class)->only(['index', 'store', 'show']);
-    Route::patch('/leave-requests/{leaveRequest}/validate', [LeaveRequestController::class, 'validateRequest']);
-    Route::patch('/leave-requests/{leaveRequest}/refuse', [LeaveRequestController::class, 'refuse']);
+        Route::apiResource('leave-requests', LeaveRequestController::class)->only(['index', 'store', 'show']);
+        Route::patch('/leave-requests/{leaveRequest}/validate', [LeaveRequestController::class, 'validateRequest']);
+        Route::patch('/leave-requests/{leaveRequest}/refuse', [LeaveRequestController::class, 'refuse']);
+    });
 
     // --- Étape 7a : notifications multicanal ---
 
@@ -441,21 +503,29 @@ Route::middleware(['auth:sanctum', 'tenant', 'two_factor', 'password_change', 's
 
     // --- Étape 7b : portails externes (staff-side) ---
 
-    Route::apiResource('external-prescribers', ExternalPrescriberController::class);
-    Route::post('/external-prescribers/{externalPrescriber}/portal/send-activation', [ExternalPrescriberController::class, 'sendPortalActivation']);
+    Route::middleware('module:prescripteurs')->group(function () {
+        Route::apiResource('external-prescribers', ExternalPrescriberController::class);
+        Route::post('/external-prescribers/{externalPrescriber}/portal/send-activation', [ExternalPrescriberController::class, 'sendPortalActivation']);
+    });
 
-    Route::apiResource('teleconsultations', TeleconsultationController::class)->only(['index', 'store', 'show']);
-    Route::post('/teleconsultations/{teleconsultation}/start', [TeleconsultationController::class, 'start']);
-    Route::post('/teleconsultations/{teleconsultation}/close', [TeleconsultationController::class, 'close']);
-    Route::post('/teleconsultations/{teleconsultation}/cancel', [TeleconsultationController::class, 'cancel']);
+    Route::middleware('module:teleconsultation')->group(function () {
+        Route::apiResource('teleconsultations', TeleconsultationController::class)->only(['index', 'store', 'show']);
+        Route::post('/teleconsultations/{teleconsultation}/start', [TeleconsultationController::class, 'start']);
+        Route::post('/teleconsultations/{teleconsultation}/close', [TeleconsultationController::class, 'close']);
+        Route::post('/teleconsultations/{teleconsultation}/cancel', [TeleconsultationController::class, 'cancel']);
+    });
 
-    Route::apiResource('patient-referrals', PatientReferralController::class)
-        ->only(['index', 'store', 'show'])
-        ->parameters(['patient-referrals' => 'referral']);
-    Route::post('/patient-referrals/{referral}/accept', [PatientReferralController::class, 'accept']);
-    Route::post('/patient-referrals/{referral}/refuse', [PatientReferralController::class, 'refuse']);
-    Route::post('/patient-referrals/{referral}/complete', [PatientReferralController::class, 'completeWithReport']);
-    Route::get('/patient-referrals/{referral}/patient-resume', [PatientReferralController::class, 'patientResume']);
+    // Une structure sans le module ne peut ni envoyer ni traiter de
+    // référencement (y compris ceux qu'une autre structure lui adresse).
+    Route::middleware('module:referrals')->group(function () {
+        Route::apiResource('patient-referrals', PatientReferralController::class)
+            ->only(['index', 'store', 'show'])
+            ->parameters(['patient-referrals' => 'referral']);
+        Route::post('/patient-referrals/{referral}/accept', [PatientReferralController::class, 'accept']);
+        Route::post('/patient-referrals/{referral}/refuse', [PatientReferralController::class, 'refuse']);
+        Route::post('/patient-referrals/{referral}/complete', [PatientReferralController::class, 'completeWithReport']);
+        Route::get('/patient-referrals/{referral}/patient-resume', [PatientReferralController::class, 'patientResume']);
+    });
 
     // --- Étape 8 : Tableaux de bord, Reporting, Qualité ---
 
@@ -464,18 +534,22 @@ Route::middleware(['auth:sanctum', 'tenant', 'two_factor', 'password_change', 's
     Route::get('/dashboards/direction', [DashboardDirectionController::class, 'index']);
     Route::get('/dashboards/qualite', [DashboardQualiteController::class, 'index']);
 
-    Route::post('/patient-satisfaction-surveys/send-invitation', [PatientSatisfactionSurveyController::class, 'sendInvitation']);
-    Route::apiResource('patient-satisfaction-surveys', PatientSatisfactionSurveyController::class)->only(['index', 'store']);
+    Route::middleware('module:qualite')->group(function () {
+        Route::post('/patient-satisfaction-surveys/send-invitation', [PatientSatisfactionSurveyController::class, 'sendInvitation']);
+        Route::apiResource('patient-satisfaction-surveys', PatientSatisfactionSurveyController::class)->only(['index', 'store']);
+    });
 
-    Route::apiResource('complaints', ComplaintController::class)->only(['index', 'store', 'show']);
-    Route::post('/complaints/{complaint}/assign', [ComplaintController::class, 'assign']);
-    Route::post('/complaints/{complaint}/respond', [ComplaintController::class, 'respond']);
-    Route::post('/complaints/{complaint}/resolve', [ComplaintController::class, 'resolve']);
-    Route::post('/complaints/{complaint}/close', [ComplaintController::class, 'close']);
+    Route::middleware('module:reclamations')->group(function () {
+        Route::apiResource('complaints', ComplaintController::class)->only(['index', 'store', 'show']);
+        Route::post('/complaints/{complaint}/assign', [ComplaintController::class, 'assign']);
+        Route::post('/complaints/{complaint}/respond', [ComplaintController::class, 'respond']);
+        Route::post('/complaints/{complaint}/resolve', [ComplaintController::class, 'resolve']);
+        Route::post('/complaints/{complaint}/close', [ComplaintController::class, 'close']);
+    });
 
     Route::get('/reports/epidemiologie/export', [ReportExportController::class, 'epidemiologie']);
     Route::get('/reports/chiffre-affaires/export', [ReportExportController::class, 'chiffreAffaires']);
-    Route::get('/reports/balance-agee/export', [ReportExportController::class, 'balanceAgee']);
+    Route::get('/reports/balance-agee/export', [ReportExportController::class, 'balanceAgee'])->middleware('module:finance_avancee');
 
     // --- Étape 9 §2 : sessions/connexions actives ---
 

@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { TableSkeleton } from "@/components/ui/loading-state";
 import { usePrescriberImagingOrders, usePrescriberLabOrders } from "@/hooks/portal-prescripteur/use-prescriber-requests";
+import { usePrescriberAuth } from "@/hooks/use-prescriber-auth";
 import { formatDate } from "@/lib/datetime";
 import { portalErrorMessage } from "@/lib/portal-error";
 import type {
@@ -61,8 +62,12 @@ interface Row {
 }
 
 export function PrescriberRequestsPage() {
-  const laboQuery = usePrescriberLabOrders();
-  const imagerieQuery = usePrescriberImagingOrders();
+  // Livraison B : chaque type de demande suit le module de son plateau.
+  const { hasModule } = usePrescriberAuth();
+  const hasLabo = hasModule("laboratoire");
+  const hasImagerie = hasModule("imagerie");
+  const laboQuery = usePrescriberLabOrders(hasLabo);
+  const imagerieQuery = usePrescriberImagingOrders(hasImagerie);
   const [expanded, setExpanded] = useState<string | null>(null);
 
   const isError = laboQuery.isError || imagerieQuery.isError;
@@ -89,8 +94,8 @@ export function PrescriberRequestsPage() {
   }, [laboQuery.data, imagerieQuery.data]);
 
   function retry() {
-    laboQuery.refetch();
-    imagerieQuery.refetch();
+    if (hasLabo) laboQuery.refetch();
+    if (hasImagerie) imagerieQuery.refetch();
   }
 
   return (

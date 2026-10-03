@@ -16,6 +16,7 @@ import {
   useCreatePrescriberLabOrder,
 } from "@/hooks/portal-prescripteur/use-prescriber-requests";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { usePrescriberAuth } from "@/hooks/use-prescriber-auth";
 import { age } from "@/lib/datetime";
 import { portalErrorMessage } from "@/lib/portal-error";
 import type { PrescriberLoincCode, PrescriberPatientSearchResult } from "@/types/api";
@@ -31,7 +32,12 @@ const EXAM_TYPE_OPTIONS: { value: "radio" | "echo" | "scanner" | "irm"; label: s
 
 export function PrescriberNewRequestPage() {
   const navigate = useNavigate();
-  const [kind, setKind] = useState<ExamKind>("labo");
+  // Livraison B : un type de demande n'est proposé que si le module de son
+  // plateau est actif pour la structure (le backend refuse sinon).
+  const { hasModule } = usePrescriberAuth();
+  const hasLabo = hasModule("laboratoire");
+  const hasImagerie = hasModule("imagerie");
+  const [kind, setKind] = useState<ExamKind>(hasLabo ? "labo" : "imagerie");
   const [patient, setPatient] = useState<PrescriberPatientSearchResult | null>(null);
   const [patientSearch, setPatientSearch] = useState("");
   const [siteId, setSiteId] = useState<number | null>(null);
@@ -93,6 +99,12 @@ export function PrescriberNewRequestPage() {
     }
   }
 
+  if (!hasLabo && !hasImagerie) {
+    return (
+      <ErrorState message="Les demandes d'examens ne sont pas proposées par cette structure. Contactez-la directement." />
+    );
+  }
+
   if (confirmation) {
     return (
       <div className="mx-auto max-w-md space-y-6 py-8 text-center">
@@ -135,28 +147,32 @@ export function PrescriberNewRequestPage() {
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-text-muted">Type d'examen</label>
             <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setKind("labo")}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
-                  kind === "labo"
-                    ? "border-accent bg-accent/10 text-accent-light"
-                    : "border-border bg-surface text-text-muted hover:bg-surface-hover"
-                }`}
-              >
-                <FlaskConical size={15} /> Laboratoire
-              </button>
-              <button
-                type="button"
-                onClick={() => setKind("imagerie")}
-                className={`flex flex-1 items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
-                  kind === "imagerie"
-                    ? "border-accent bg-accent/10 text-accent-light"
-                    : "border-border bg-surface text-text-muted hover:bg-surface-hover"
-                }`}
-              >
-                <Scan size={15} /> Imagerie
-              </button>
+              {hasLabo && (
+                <button
+                  type="button"
+                  onClick={() => setKind("labo")}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                    kind === "labo"
+                      ? "border-accent bg-accent/10 text-accent-light"
+                      : "border-border bg-surface text-text-muted hover:bg-surface-hover"
+                  }`}
+                >
+                  <FlaskConical size={15} /> Laboratoire
+                </button>
+              )}
+              {hasImagerie && (
+                <button
+                  type="button"
+                  onClick={() => setKind("imagerie")}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                    kind === "imagerie"
+                      ? "border-accent bg-accent/10 text-accent-light"
+                      : "border-border bg-surface text-text-muted hover:bg-surface-hover"
+                  }`}
+                >
+                  <Scan size={15} /> Imagerie
+                </button>
+              )}
             </div>
           </div>
 

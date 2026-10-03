@@ -281,7 +281,7 @@ class PlatformAdministrationAuditTest extends TestCase
         $this->assertTrue($module['is_active']);
 
         $this->withHeader('Authorization', "Bearer {$token}")
-            ->patchJson("/api/platform/structures/{$structureId}/modules/{$module['id']}", ['is_active' => false])
+            ->patchJson("/api/platform/structures/{$structureId}/modules/laboratoire", ['is_active' => false])
             ->assertOk()
             ->assertJsonPath('data.is_active', false);
 

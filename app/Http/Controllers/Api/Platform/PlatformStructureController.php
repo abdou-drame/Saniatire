@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Platform;
 
+use App\Domain\Platform\ModuleCatalog;
 use App\Domain\Structure\Models\Structure;
 use App\Domain\Structure\Models\StructureModule;
 use App\Domain\User\Models\User;
@@ -11,7 +12,6 @@ use App\Http\Requests\PlatformStructureStoreRequest;
 use App\Http\Requests\StructureRequest;
 use App\Http\Resources\StructureResource;
 use App\Http\Resources\UserResource;
-use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -86,8 +86,10 @@ class PlatformStructureController extends Controller
             $admin->assignRole('administrateur');
 
             $now = now();
+            // Modules premium uniquement (le socle est toujours actif, sans
+            // ligne) : tous actifs à la création, voir ModuleCatalog.
             StructureModule::insert(
-                collect(RolePermissionSeeder::MODULES)->map(fn (string $module) => [
+                collect(array_keys(ModuleCatalog::PREMIUM))->map(fn (string $module) => [
                     'structure_id' => $structure->id,
                     'module' => $module,
                     'is_active' => true,

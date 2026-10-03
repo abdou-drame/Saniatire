@@ -2,53 +2,86 @@
 
 namespace App\Http\Controllers\Api\Platform;
 
+use App\Domain\Platform\ModuleCatalog;
 use App\Domain\Structure\Models\Structure;
 use App\Domain\Structure\Models\StructureModule;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StructureModuleUpdateRequest;
-use App\Http\Resources\StructureModuleResource;
 use Illuminate\Http\JsonResponse;
 
 /**
- * Cahier des charges §7 : uniquement la donnée et l'écran de gestion des
- * modules activés par structure (voir StructureModule) — aucune activation
- * réelle n'est branchée ailleurs dans l'application à ce stade, volontaire.
+ * Livraison B : modules réellement actifs (middleware `module:<clé>`).
+ * L'écran plateforme reçoit le catalogue complet (ModuleCatalog) et non les
+ * seules lignes structure_modules : un module premium sans ligne est actif,
+ * un module socle est toujours actif et ne peut pas être désactivé.
  */
 class StructureModuleController extends Controller
 {
     public function index(Structure $structure): JsonResponse
     {
-        $modules = $structure->modules()->orderBy('module')->get();
+        $rows = $structure->modules()->get()->keyBy('module');
 
-        return StructureModuleResource::collection($modules)->response();
+        $core = collect(ModuleCatalog::CORE)->map(fn (string $label, string $module) => [
+            'module' => $module,
+            'label' => $label,
+            'is_core' => true,
+            'is_active' => true,
+            'activated_at' => null,
+            'deactivated_at' => null,
+        ]);
+
+        $premium = collect(ModuleCatalog::PREMIUM)->map(fn (string $label, string $module) => [
+            'module' => $module,
+            'label' => $label,
+            'is_core' => false,
+            'is_active' => $rows->get($module)?->is_active ?? true,
+            'activated_at' => $rows->get($module)?->activated_at,
+            'deactivated_at' => $rows->get($module)?->deactivated_at,
+        ]);
+
+        return response()->json(['data' => $core->merge($premium)->values()]);
     }
 
-    public function update(StructureModuleUpdateRequest $request, Structure $structure, StructureModule $module): StructureModuleResource
+    public function update(StructureModuleUpdateRequest $request, Structure $structure, string $module): JsonResponse
     {
-        abort_unless($module->structure_id === $structure->id, 404);
         abort_if($structure->trashed(), 409, 'Cette structure est archivée : elle reste consultable mais ne peut plus être modifiée.');
 
-        $isActive = $request->validated('is_active');
+        if (ModuleCatalog::isCore($module)) {
+            abort(422, 'Le module « '.ModuleCatalog::label($module).' » fait partie du socle : il est toujours actif et ne peut pas être désactivé.');
+        }
 
-        $module->update([
+        abort_unless(ModuleCatalog::isPremium($module), 404, 'Module inconnu.');
+
+        $isActive = $request->validated('is_active');
+        $row = StructureModule::firstOrNew(['structure_id' => $structure->id, 'module' => $module]);
+        $wasActive = $row->exists ? $row->is_active : true;
+
+        $row->fill([
             'is_active' => $isActive,
-            'activated_at' => $isActive ? now() : $module->activated_at,
+            'activated_at' => $isActive && ! $wasActive ? now() : ($row->activated_at ?? ($isActive ? now() : null)),
             'deactivated_at' => $isActive ? null : now(),
-        ]);
+        ])->save();
 
         activity('administration_plateforme')
             ->causedBy($request->user('platform'))
-            ->performedOn($module)
+            ->performedOn($row)
             ->withProperties([
                 'action' => $isActive ? 'activation_module' : 'desactivation_module',
-                'module' => $module->module,
+                'module' => $module,
                 'hors_isolation' => true,
             ])
             ->tap(function ($activity) use ($structure) {
                 $activity->structure_id = $structure->id;
             })
-            ->log("Action de l'administrateur de plateforme sur le module {$module->module}, hors du cadre normal d'isolation par structure.");
+            ->log("Action de l'administrateur de plateforme sur le module {$module}, hors du cadre normal d'isolation par structure.");
 
-        return new StructureModuleResource($module);
+        return response()->json(['data' => [
+            'module' => $module,
+            'label' => ModuleCatalog::label($module),
+            'is_core' => false,
+            'is_active' => $row->is_active,
+            'activated_at' => $row->activated_at,
+            'deactivated_at' => $row->deactivated_at,
+        ]]);
     }
 }

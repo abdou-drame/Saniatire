@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Domain\Platform\ModuleCatalog;
 use App\Domain\Platform\SubscriptionState;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -31,6 +32,10 @@ class UserResource extends JsonResource
             // compte connecté lui-même (login, challenge 2FA, /auth/me) :
             // état calculé par SubscriptionState, affiché tel quel par le frontend.
             'subscription' => $this->whenLoaded('structure', fn () => SubscriptionState::forStructure($this->structure_id)->toArrayFor($this->resource)),
+            // Même condition : clés des modules actifs (socle + premium non
+            // coupés), utilisées telles quelles par le frontend pour masquer
+            // les menus — la règle reste dans ModuleCatalog.
+            'modules' => $this->whenLoaded('structure', fn () => ModuleCatalog::activeFor($this->structure_id)),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

@@ -26,7 +26,7 @@ export function PatientDetailPage() {
   const patientId = Number(id);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, hasRole, hasPermission } = useAuth();
+  const { user, hasRole, hasPermission, hasModule } = useAuth();
   const queryClient = useQueryClient();
   const [starting, setStarting] = useState(false);
   const [labDialogOpen, setLabDialogOpen] = useState(false);
@@ -76,8 +76,9 @@ export function PatientDetailPage() {
     return <ErrorState message="Identifiant patient invalide." />;
   }
 
-  const visibleSpecialties = Object.values(SPECIALTY_UI_REGISTRY).filter((meta) =>
-    hasPermission(meta.viewPermission),
+  const visibleSpecialties = Object.values(SPECIALTY_UI_REGISTRY).filter(
+    // meta.type est aussi la clé du module premium de la spécialité.
+    (meta) => hasModule(meta.type) && hasPermission(meta.viewPermission),
   );
 
   return (
@@ -221,20 +222,26 @@ export function PatientDetailPage() {
         </div>
       )}
 
-      {patientQuery.data && <PatientHospitalizationPanel patientId={patientId} />}
+      {patientQuery.data && hasModule("hospitalisation") && <PatientHospitalizationPanel patientId={patientId} />}
 
       {patientQuery.data && hasRole("medecin") && (
         <div className="space-y-4">
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button variant="secondary" size="sm" onClick={() => setLabDialogOpen(true)}>
-              <FlaskConical size={14} />
-              Prescrire une analyse
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => setImagingDialogOpen(true)}>
-              <Scan size={14} />
-              Prescrire un examen d'imagerie
-            </Button>
-          </div>
+          {(hasModule("laboratoire") || hasModule("imagerie")) && (
+            <div className="flex flex-wrap justify-end gap-2">
+              {hasModule("laboratoire") && (
+                <Button variant="secondary" size="sm" onClick={() => setLabDialogOpen(true)}>
+                  <FlaskConical size={14} />
+                  Prescrire une analyse
+                </Button>
+              )}
+              {hasModule("imagerie") && (
+                <Button variant="secondary" size="sm" onClick={() => setImagingDialogOpen(true)}>
+                  <Scan size={14} />
+                  Prescrire un examen d'imagerie
+                </Button>
+              )}
+            </div>
+          )}
           {openConsultationQuery.data ? (
             <ConsultationForm
               patientId={patientId}

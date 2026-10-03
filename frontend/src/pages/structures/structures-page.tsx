@@ -385,7 +385,7 @@ function WardsSection({ canManage }: { canManage: boolean }) {
 }
 
 export function StructuresPage() {
-  const { hasPermission } = useAuth();
+  const { hasPermission, hasModule } = useAuth();
   const structureQuery = useStructure();
   const canEditStructure = hasPermission("structures.update");
   const canManageSites = hasPermission("sites.create") || hasPermission("sites.update") || hasPermission("sites.delete");
@@ -409,7 +409,7 @@ export function StructuresPage() {
       </Card>
 
       {hasPermission("sites.view") && <SitesSection canManage={canManageSites} />}
-      {hasPermission("hospitalisation.view") && <WardsSection canManage={canManageWards} />}
+      {hasModule("hospitalisation") && hasPermission("hospitalisation.view") && <WardsSection canManage={canManageWards} />}
     </div>
   );
 }

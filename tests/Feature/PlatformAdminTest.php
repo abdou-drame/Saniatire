@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Domain\Platform\ModuleCatalog;
 use App\Domain\Platform\Models\PlatformAdmin;
 use App\Domain\Structure\Models\Structure;
 use App\Domain\User\Models\User;
@@ -89,7 +90,7 @@ class PlatformAdminTest extends TestCase
         $this->assertTrue($createdAdmin->hasRole('administrateur'));
 
         $this->assertSame(
-            count(RolePermissionSeeder::MODULES),
+            count(ModuleCatalog::PREMIUM),
             Structure::find($structureId)->modules()->where('is_active', true)->count()
         );
     }
@@ -206,10 +207,10 @@ class PlatformAdminTest extends TestCase
         ])->assertCreated();
 
         $newStructure = Structure::query()->where('code', 'CLN-MOD')->firstOrFail();
-        $module = $newStructure->modules()->first();
+        $module = $newStructure->modules()->where('module', 'laboratoire')->firstOrFail();
 
         $response = $this->actingAs($platformAdmin, 'platform')
-            ->patchJson("/api/platform/structures/{$newStructure->id}/modules/{$module->id}", [
+            ->patchJson("/api/platform/structures/{$newStructure->id}/modules/{$module->module}", [
                 'is_active' => false,
             ]);
 

@@ -18,6 +18,7 @@ import {
 } from "@/hooks/use-platform-structures";
 import { usePlatformStructureModules, useUpdatePlatformStructureModule } from "@/hooks/use-platform-modules";
 import { apiErrorMessage } from "@/lib/api-error";
+import type { StructureModule } from "@/types/api";
 
 const STRUCTURE_TYPE_LABEL: Record<string, string> = {
   cabinet: "Cabinet",
@@ -29,11 +30,14 @@ const STRUCTURE_TYPE_LABEL: Record<string, string> = {
   groupe_sante: "Groupe santé",
 };
 
-function ModuleRow({ structureId, moduleId, moduleName, isActive, readOnly }: {
+/**
+ * Livraison B : catalogue complet renvoyé par le backend (ModuleCatalog).
+ * Un module du socle est toujours actif : interrupteur verrouillé, et le
+ * backend refuse de toute façon sa désactivation (422).
+ */
+function ModuleRow({ structureId, module, readOnly }: {
   structureId: number;
-  moduleId: number;
-  moduleName: string;
-  isActive: boolean;
+  module: StructureModule;
   readOnly: boolean;
 }) {
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +46,7 @@ function ModuleRow({ structureId, moduleId, moduleName, isActive, readOnly }: {
   function handleToggle(next: boolean) {
     setError(null);
     updateModule.mutate(
-      { moduleId, isActive: next },
+      { module: module.module, isActive: next },
       { onError: (err) => setError(apiErrorMessage(err)) },
     );
   }
@@ -50,16 +54,19 @@ function ModuleRow({ structureId, moduleId, moduleName, isActive, readOnly }: {
   return (
     <div className="flex items-center justify-between gap-4 border-b border-border px-4 py-3 last:border-b-0">
       <div>
-        <p className="text-sm text-text">{moduleName}</p>
+        <p className="flex items-center gap-2 text-sm text-text">
+          {module.label}
+          {module.is_core && <Badge status="accent">Socle</Badge>}
+        </p>
         {error && <p className="mt-1 text-xs text-danger">{error}</p>}
       </div>
       <div className="flex items-center gap-2">
         {updateModule.isPending && <LoaderCircle size={14} className="animate-spin text-text-muted" />}
         <Switch
-          checked={isActive}
+          checked={module.is_active}
           onCheckedChange={handleToggle}
-          disabled={readOnly || updateModule.isPending}
-          label={`Module ${moduleName}`}
+          disabled={module.is_core || readOnly || updateModule.isPending}
+          label={`Module ${module.label}`}
         />
       </div>
     </div>
@@ -189,14 +196,7 @@ export function PlatformStructureDetailPage() {
           ) : structureId ? (
             <div>
               {modulesQuery.data.map((module) => (
-                <ModuleRow
-                  key={module.id}
-                  structureId={structureId}
-                  moduleId={module.id}
-                  moduleName={module.module}
-                  isActive={module.is_active}
-                  readOnly={isArchived}
-                />
+                <ModuleRow key={module.module} structureId={structureId} module={module} readOnly={isArchived} />
               ))}
             </div>
           ) : null}
@@ -212,7 +212,8 @@ export function PlatformStructureDetailPage() {
         onConfirm={handleArchive}
       />
       <p className="text-xs text-text-subtle">
-        Aucune autre partie de l'application n'est branchée sur ces bascules à ce stade — c'est normal.
+        Désactiver un module premium masque ses menus et bloque ses routes pour toute la structure, sans supprimer aucune
+        donnée : la réactivation rend l'accès à l'identique.
       </p>
     </div>
   );

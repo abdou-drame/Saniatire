@@ -13,6 +13,7 @@ type AuthContextValue = {
   refreshUser: () => Promise<void>;
   hasRole: (role: string) => boolean;
   hasPermission: (permission: string) => boolean;
+  hasModule: (module: string) => boolean;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -78,9 +79,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return user?.permissions.includes(permission) ?? false;
   }
 
+  // Liste calculée par le backend (/auth/me) : simple lecture, la règle
+  // d'activation n'est jamais recalculée ici. Liste absente = tout actif
+  // (le backend refuse de toute façon les routes d'un module coupé).
+  function hasModule(module: string) {
+    return user?.modules?.includes(module) ?? true;
+  }
+
   return (
     <AuthContext.Provider
-      value={{ isAuthenticated, isLoading, user, login, logout, refreshUser, hasRole, hasPermission }}
+      value={{ isAuthenticated, isLoading, user, login, logout, refreshUser, hasRole, hasPermission, hasModule }}
     >
       {children}
     </AuthContext.Provider>
