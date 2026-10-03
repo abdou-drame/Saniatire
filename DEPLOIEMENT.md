@@ -227,33 +227,26 @@ Le répertoire `storage/` de Laravel contient :
 
 ---
 
-## Étape 7 — Exécuter les migrations (MANUELLEMENT)
+## Étape 7 — Migrations (AUTOMATIQUES au démarrage)
 
-> ⚠️ Les migrations ne sont **pas exécutées automatiquement** au démarrage — c'est intentionnel pour ce projet de données de santé. Vous les lancez vous-même après chaque déploiement qui en introduit de nouvelles.
+Les migrations s'appliquent **automatiquement à chaque déploiement** : la commande de démarrage de `nixpacks.toml` lance `php artisan deploy:migrate` puis, seulement si elle réussit, le serveur HTTP.
 
-### Méthode recommandée : terminal intégré Dokploy
+- **Plusieurs réplicas** : Dokploy n'a pas de phase « release » unique par déploiement, chaque instance lance donc la commande. Un verrou PostgreSQL (`pg_advisory_lock`) les sérialise : une seule applique les migrations, les autres attendent puis constatent « Nothing to migrate ».
+- **Migration en échec** : la commande sort en erreur, le serveur HTTP ne démarre pas (pas de schéma incomplet en service). L'erreur est visible dans **sanitaire-api → Logs** (logs du conteneur, pas les logs de build).
+- **Déjà appliquée** : une migration présente dans la table `migrations` n'est jamais relancée.
+- ⚠️ Ne pas renseigner **Advanced → Run Command** dans Dokploy : elle remplacerait la commande de `nixpacks.toml` et désactiverait ce mécanisme.
 
-1. Dans Dokploy, allez dans l'app `sanitaire-api`
-2. Cliquez sur l'onglet **Terminal**
-3. Exécutez dans l'ordre :
+### Premier déploiement uniquement (terminal intégré Dokploy)
 
 ```bash
-# 1. Vérifier l'état des migrations en attente
-php artisan migrate:status
-
-# 2. Exécuter les migrations (avec confirmation explicite)
-php artisan migrate --force
-
-# 3. (Premier déploiement uniquement) Créer le lien symbolique storage → public
+# Créer le lien symbolique storage → public
 php artisan storage:link
 
-# 4. (Premier déploiement uniquement) Exécuter les seeders si nécessaire
+# Exécuter les seeders si nécessaire
 # php artisan db:seed --class=RolePermissionSeeder --force
 ```
 
-### Méthode alternative : Deploy Script dans Dokploy
-
-Vous pouvez aussi configurer un **Deploy Hook** (post-deploy script) dans Dokploy, mais pour des données médicales, préférez le terminal manuel pour garder le contrôle.
+`php artisan migrate:status` reste disponible dans le terminal pour vérifier l'état.
 
 ---
 
@@ -284,7 +277,7 @@ Sans ce flag `--single`, un rechargement de page sur `/patients/123` retournerai
 5. [ ] **Créer** le volume persistant pour `storage/`
 6. [ ] **Déclencher** un premier déploiement du backend
 7. [ ] **Ouvrir** le terminal → exécuter `php artisan key:generate` si pas encore fait
-8. [ ] **Exécuter** `php artisan migrate --force` dans le terminal
+8. [ ] **Vérifier** dans les logs du conteneur que `[deploy:migrate] Terminé (code 0)` apparaît (migrations automatiques)
 9. [ ] **Exécuter** `php artisan storage:link`
 10. [ ] **Tester** `https://api.[mondomaine]/up` → doit retourner HTTP 200
 11. [ ] **Créer** l'app `sanitaire-app` (frontend) → branch `main`, root `/frontend`, port `8080`

@@ -32,4 +32,7 @@ cmds = [
 ]
 
 [start]
-cmd = "php artisan serve --host=0.0.0.0 --port=8080"
+# Migrations appliquées à chaque démarrage, avant le serveur HTTP (voir
+# app/Console/Commands/DeployMigrateCommand.php) : si elles échouent, `&&`
+# empêche l'application de démarrer sur un schéma incomplet.
+cmd = "php artisan deploy:migrate && php artisan serve --host=0.0.0.0 --port=8080"
