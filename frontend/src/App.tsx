@@ -444,7 +444,7 @@ export default function App() {
           <Route index element={<Navigate to="rendez-vous" replace />} />
         </Route>
 
-        <Route path="*" element={<Navigate to="login" replace />} />
+        <Route path="*" element={<Navigate to="/portail/login" replace />} />
       </Route>
 
       {/*
@@ -471,7 +471,7 @@ export default function App() {
           <Route index element={<Navigate to="demandes" replace />} />
         </Route>
 
-        <Route path="*" element={<Navigate to="login" replace />} />
+        <Route path="*" element={<Navigate to="/portail-prescripteur/login" replace />} />
       </Route>
 
       {/*
@@ -499,7 +499,7 @@ export default function App() {
           <Route index element={<Navigate to="structures" replace />} />
         </Route>
 
-        <Route path="*" element={<Navigate to="login" replace />} />
+        <Route path="*" element={<Navigate to="/platform/login" replace />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
