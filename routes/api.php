@@ -66,6 +66,7 @@ use App\Http\Controllers\Api\Platform\PlatformAuthController;
 use App\Http\Controllers\Api\Platform\PlatformPlanController;
 use App\Http\Controllers\Api\Platform\PlatformStructureController;
 use App\Http\Controllers\Api\Platform\PlatformSubscriptionController;
+use App\Http\Controllers\Api\Platform\PlatformUserController;
 use App\Http\Controllers\Api\Platform\StructureModuleController as PlatformStructureModuleController;
 use App\Http\Controllers\Api\PmaRecordController;
 use App\Http\Controllers\Api\PractitionerController;
@@ -224,6 +225,17 @@ Route::middleware('auth:platform')->prefix('platform')->group(function () {
     Route::post('/structures/{structure}/subscriptions', [PlatformSubscriptionController::class, 'store'])->withTrashed();
     Route::post('/subscriptions/{subscription}/suspend', [PlatformSubscriptionController::class, 'suspend']);
     Route::post('/subscriptions/{subscription}/resume', [PlatformSubscriptionController::class, 'resume']);
+
+    // Livraison C : comptes du personnel (modèle User uniquement). {user}
+    // résolu à la main dans PlatformUserController (filtre structure_id
+    // explicite, voir TenantScope) : whereNumber() évite qu'un identifiant
+    // non numérique n'atteigne la base.
+    Route::get('/structures/{structure}/administrators', [PlatformUserController::class, 'administrators'])->withTrashed();
+    Route::post('/structures/{structure}/administrators', [PlatformUserController::class, 'storeAdministrator'])->withTrashed();
+    Route::post('/structures/{structure}/administrators/{user}/deactivate', [PlatformUserController::class, 'deactivateAdministrator'])->withTrashed()->whereNumber('user');
+    Route::post('/structures/{structure}/administrators/{user}/activate', [PlatformUserController::class, 'activateAdministrator'])->withTrashed()->whereNumber('user');
+    Route::post('/users/{user}/unlock', [PlatformUserController::class, 'unlock'])->whereNumber('user');
+    Route::post('/users/{user}/reset-password', [PlatformUserController::class, 'resetPassword'])->whereNumber('user');
 
     Route::get('/audit-logs', [PlatformAuditLogController::class, 'index']);
 });

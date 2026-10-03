@@ -1546,6 +1546,35 @@ export interface CreateStructureResponse {
 }
 
 /**
+ * Compte du personnel d'une structure tel que géré par la plateforme
+ * (administrateurs : création, désactivation, déblocage, réinitialisation).
+ */
+export interface PlatformStaffUser {
+  id: number;
+  structure_id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  is_active: boolean;
+  must_change_password: boolean;
+  is_locked: boolean;
+  locked_until: string | null;
+  failed_login_attempts: number;
+  created_at: string;
+}
+
+/**
+ * Réponse de création / réinitialisation : `generated_password` n'existe que
+ * dans cette réponse. Ne jamais le persister au-delà de l'état local du
+ * composant qui l'affiche.
+ */
+export interface PlatformStaffUserWithPassword {
+  data: PlatformStaffUser;
+  generated_password: string;
+  message: string;
+}
+
+/**
  * `GET /platform/audit-logs` : même patron que AuditLogEntry/AuditLogPage
  * mais sans `log_name`/`event` (toujours 'administration_plateforme', déjà
  * filtré côté serveur) et avec `structure_id` (la structure concernée par

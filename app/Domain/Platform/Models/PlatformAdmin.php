@@ -49,6 +49,9 @@ class PlatformAdmin extends Authenticatable
         return LogOptions::defaults()
             ->logOnlyDirty()
             ->logFillable()
+            // Même règle que User : jamais de hash de mot de passe journalisé.
+            ->logExcept(['password'])
+            ->dontSubmitEmptyLogs()
             ->useLogName('platform_admin');
     }
 }

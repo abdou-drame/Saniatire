@@ -179,6 +179,11 @@ class User extends Authenticatable
         return LogOptions::defaults()
             ->logOnlyDirty()
             ->logFillable()
+            // Jamais de hash de mot de passe dans le journal : logFillable()
+            // l'inclurait (spatie n'exclut pas $hidden). Un changement de mot
+            // de passe seul ne produit alors plus d'entrée vide.
+            ->logExcept(['password'])
+            ->dontSubmitEmptyLogs()
             ->useLogName('user');
     }
 }
