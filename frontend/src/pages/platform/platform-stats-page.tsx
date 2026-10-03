@@ -1,4 +1,4 @@
-import { Activity, Building2, Stethoscope, Users } from "lucide-react";
+import { Activity, BarChart3, Building2, Stethoscope, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { KpiRowSkeleton } from "@/components/ui/loading-state";
+import { PlatformNote, PlatformPageHeader } from "@/components/platform/platform-ui";
 import { usePlatformStats } from "@/hooks/use-platform-insights";
 import { apiErrorMessage } from "@/lib/api-error";
 import { formatNumber } from "@/lib/format";
@@ -63,8 +64,8 @@ export function PlatformStatsPage() {
   const currentMonth = stats?.months[stats.months.length - 1];
 
   // Deux tableaux plutôt qu'un : avec les six colonnes mensuelles, un seul
-  // tableau dépassait la largeur de la mise en page plateforme (max-w-4xl)
-  // et masquait justement les mois les plus récents derrière un défilement.
+  // tableau devient trop large sur tablette et masquerait justement les mois
+  // les plus récents derrière un défilement.
   const columns: DataTableColumn<PlatformStatsStructure>[] = [
     nameColumn,
     { key: "status", header: "Statut", render: (row) => <StructureStatusBadge structure={row} /> },
@@ -114,7 +115,7 @@ export function PlatformStatsPage() {
       {!stats || !structuresTotals ? (
         <KpiRowSkeleton count={4} />
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {/* Même gabarit que KpiCard, avec la répartition par statut en dessous. */}
           <Card className="p-5">
             <div className="flex items-start justify-between">
@@ -177,7 +178,7 @@ export function PlatformStatsPage() {
             pageSize={20}
             emptyState={<EmptyState icon={Building2} title="Aucune structure" />}
           />
-          <p className="mt-3 text-xs text-text-subtle">Nombre de consultations sur les six derniers mois.</p>
+          <PlatformNote className="mt-3">Nombre de consultations sur les six derniers mois.</PlatformNote>
         </CardContent>
       </Card>
     </div>
@@ -186,9 +187,10 @@ export function PlatformStatsPage() {
 
 function StatsHeader() {
   return (
-    <div>
-      <h1 className="font-heading text-xl font-semibold text-text">Statistiques</h1>
-      <p className="mt-1 text-sm text-text-muted">Volumes agrégés par structure — aucun accès au contenu des dossiers.</p>
-    </div>
+    <PlatformPageHeader
+      icon={BarChart3}
+      title="Statistiques"
+      description="Volumes agrégés par structure — aucun accès au contenu des dossiers."
+    />
   );
 }

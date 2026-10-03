@@ -16,6 +16,7 @@ import {
   useTogglePlatformSubscription,
 } from "@/hooks/use-platform-subscriptions";
 import { apiErrorMessage } from "@/lib/api-error";
+import { cn } from "@/lib/utils";
 import type { Subscription, SubscriptionPeriodStatus, SubscriptionStateCode } from "@/types/api";
 
 const STATE_BADGE: Record<SubscriptionStateCode, { label: string; status: "success" | "warning" | "danger" }> = {
@@ -80,7 +81,8 @@ function NewPeriodForm({ structureId, onDone }: { structureId: number; onDone: (
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3 border-b border-border p-4">
+    <form onSubmit={handleSubmit} className="space-y-3 border-t border-border bg-surface-hover/30 p-4 sm:p-5">
+      <p className="text-xs font-medium uppercase tracking-wide text-text-subtle">Nouvelle période d'abonnement</p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <Label htmlFor="subscription-plan">Formule</Label>
@@ -170,11 +172,23 @@ function PeriodRow({ structureId, period, isCurrent, readOnly }: {
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 last:border-b-0">
-      <div>
-        <p className="text-sm text-text">
-          {period.plan?.name ?? "Formule"} · {formatDate(period.starts_at)} → {formatDate(period.ends_at)}
-          {isCurrent && <span className="ml-2 text-xs text-text-muted">(période courante)</span>}
+    <div
+      className={cn(
+        "flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3",
+        isCurrent && "bg-accent/5",
+      )}
+    >
+      <div className="min-w-0">
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-text">
+          <span className="font-medium">{period.plan?.name ?? "Formule"}</span>
+          <span className="font-tabular text-text-muted">
+            {formatDate(period.starts_at)} → {formatDate(period.ends_at)}
+          </span>
+          {isCurrent && (
+            <Badge status="accent" dot={false}>
+              Période courante
+            </Badge>
+          )}
         </p>
         <p className="text-xs text-text-muted">
           Grâce jusqu'au {formatDate(period.grace_ends_at)}
@@ -183,7 +197,7 @@ function PeriodRow({ structureId, period, isCurrent, readOnly }: {
         </p>
         {error && <p className="mt-1 text-xs text-danger">{error}</p>}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         <Badge status={period.status === "suspendue" || period.status === "resiliee" ? "danger" : "neutral"}>
           {STATUS_LABEL[period.status]}
         </Badge>
@@ -217,8 +231,8 @@ export function StructureSubscriptionsCard({ structureId, readOnly }: { structur
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-center gap-3">
+      <CardHeader className="flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-3">
           <CardTitle>Abonnement</CardTitle>
           {current && <Badge status={current.status}>{current.label}</Badge>}
         </div>
@@ -244,7 +258,7 @@ export function StructureSubscriptionsCard({ structureId, readOnly }: { structur
             icon={CalendarClock}
             title="Aucune période enregistrée"
             description="Sans période, la structure fonctionne normalement (structures antérieures aux abonnements)."
-            className="py-10"
+            className="m-4 py-10"
           />
         ) : (
           <div>

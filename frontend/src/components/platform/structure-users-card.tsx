@@ -75,8 +75,12 @@ export function StructureUsersCard({ structureId }: { structureId: number }) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Utilisateurs</CardTitle>
+      <CardHeader className="flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <CardTitle>Utilisateurs</CardTitle>
+          {page && page.meta.total > 0 && <Badge dot={false}>{page.meta.total}</Badge>}
+        </div>
+        <span className="text-xs text-text-subtle">Personnel de la structure · consultation seule</span>
       </CardHeader>
       <CardContent className="space-y-4">
         {usersQuery.isError ? (

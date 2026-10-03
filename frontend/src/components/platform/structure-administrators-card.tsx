@@ -11,6 +11,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { FieldError, Label } from "@/components/ui/label";
 import { TableSkeleton } from "@/components/ui/loading-state";
+import { PlatformInitials } from "@/components/platform/platform-ui";
 import {
   useCreatePlatformAdministrator,
   usePlatformStructureAdministrators,
@@ -274,34 +275,37 @@ function AdministratorRow({ user, readOnly, busy, error, onUnlock, onReactivate,
   onAskDeactivate: () => void;
 }) {
   return (
-    <div className="flex flex-col gap-3 border-b border-border px-4 py-3 last:border-b-0 md:flex-row md:items-center md:justify-between">
-      <div className="min-w-0">
-        <p className="text-sm text-text">
-          {user.first_name} {user.last_name}
-        </p>
-        <p className="break-all text-xs text-text-muted">{user.email}</p>
-        <div className="mt-1.5 flex flex-wrap gap-1.5">
-          <Badge status={user.is_active ? "success" : "neutral"}>{user.is_active ? "Actif" : "Désactivé"}</Badge>
-          {user.is_locked && (
-            <Badge
-              status="danger"
-              title={user.locked_until ? `Verrouillé jusqu'au ${formatDateTime(user.locked_until)}` : undefined}
-            >
-              Verrouillé
-            </Badge>
-          )}
-          {user.must_change_password && <Badge status="warning">Changement de mot de passe exigé</Badge>}
-        </div>
-        {user.is_locked && user.locked_until && (
-          <p className="mt-1 text-xs text-text-subtle">
-            Verrouillé jusqu'au {formatDateTime(user.locked_until)} ({user.failed_login_attempts} tentative
-            {user.failed_login_attempts > 1 ? "s" : ""} échouée{user.failed_login_attempts > 1 ? "s" : ""})
+    <div className="flex flex-col gap-3 border-t border-border px-5 py-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex min-w-0 items-start gap-3">
+        <PlatformInitials name={`${user.first_name} ${user.last_name}`} className="mt-0.5 h-9 w-9 rounded-full" />
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-text">
+            {user.first_name} {user.last_name}
           </p>
-        )}
-        {error && <p className="mt-1 text-xs text-danger">{error}</p>}
+          <p className="break-all text-xs text-text-muted">{user.email}</p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            <Badge status={user.is_active ? "success" : "neutral"}>{user.is_active ? "Actif" : "Désactivé"}</Badge>
+            {user.is_locked && (
+              <Badge
+                status="danger"
+                title={user.locked_until ? `Verrouillé jusqu'au ${formatDateTime(user.locked_until)}` : undefined}
+              >
+                Verrouillé
+              </Badge>
+            )}
+            {user.must_change_password && <Badge status="warning">Changement de mot de passe exigé</Badge>}
+          </div>
+          {user.is_locked && user.locked_until && (
+            <p className="mt-1 text-xs text-text-subtle">
+              Verrouillé jusqu'au {formatDateTime(user.locked_until)} ({user.failed_login_attempts} tentative
+              {user.failed_login_attempts > 1 ? "s" : ""} échouée{user.failed_login_attempts > 1 ? "s" : ""})
+            </p>
+          )}
+          {error && <p className="mt-1 text-xs text-danger">{error}</p>}
+        </div>
       </div>
       {!readOnly && (
-        <div className="flex flex-wrap items-center gap-2 md:shrink-0 md:justify-end">
+        <div className="flex flex-wrap items-center gap-2 pl-12 md:shrink-0 md:justify-end md:pl-0">
           {busy && <LoaderCircle size={14} className="animate-spin text-text-muted" />}
           {user.is_locked && (
             <Button size="sm" variant="secondary" onClick={onUnlock} disabled={busy}>
@@ -401,7 +405,12 @@ export function StructureAdministratorsCard({ structureId, readOnly }: { structu
   return (
     <Card>
       <CardHeader className="flex-wrap gap-2">
-        <CardTitle>Administrateurs</CardTitle>
+        <div className="flex items-center gap-2">
+          <CardTitle>Administrateurs</CardTitle>
+          {administratorsQuery.data && administratorsQuery.data.length > 0 && (
+            <Badge dot={false}>{administratorsQuery.data.length}</Badge>
+          )}
+        </div>
         {!readOnly && (
           <Button size="sm" variant="secondary" onClick={() => setCreateOpen(true)}>
             <Plus size={14} />
@@ -445,7 +454,7 @@ export function StructureAdministratorsCard({ structureId, readOnly }: { structu
             ))}
           </div>
         )}
-        <p className="border-t border-border px-4 py-3 text-xs text-text-subtle">
+        <p className="border-t border-border bg-surface-hover/20 px-5 py-3 text-xs text-text-subtle">
           Les patients et les prescripteurs réinitialisent eux-mêmes leur mot de passe via le lien « Mot de passe
           oublié » de leur portail.
         </p>

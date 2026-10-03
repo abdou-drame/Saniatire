@@ -1,5 +1,7 @@
-import { ChevronLeft, ChevronRight, ClipboardList, ShieldCheck } from "lucide-react";
+import { ChevronLeft, ChevronRight, ClipboardList, Filter, RotateCcw, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
+import { PlatformPageHeader } from "@/components/platform/platform-ui";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
@@ -51,6 +53,7 @@ export function PlatformAuditPage() {
 
   const auditQuery = usePlatformAuditLogs(filters);
   const page = auditQuery.data;
+  const hasFilters = Boolean(structureFilter || fromFilter || toFilter);
 
   function resetFilters() {
     setStructureFilter("");
@@ -60,7 +63,13 @@ export function PlatformAuditPage() {
   }
 
   const columns: DataTableColumn<PlatformAuditLogEntry>[] = [
-    { key: "created_at", header: "Date", render: (row) => formatDateTime(row.created_at) },
+    {
+      key: "created_at",
+      header: "Date",
+      render: (row) => (
+        <span className="whitespace-nowrap font-tabular text-text-muted">{formatDateTime(row.created_at)}</span>
+      ),
+    },
     {
       key: "structure",
       header: "Structure concernée",
@@ -85,15 +94,14 @@ export function PlatformAuditPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-heading text-xl font-semibold text-text">Journal d'audit plateforme</h1>
-        <p className="mt-1 text-sm text-text-muted">
-          Actions de l'administrateur de plateforme, hors du cadre normal d'isolation par structure.
-        </p>
-      </div>
+      <PlatformPageHeader
+        icon={ClipboardList}
+        title="Journal d'audit plateforme"
+        description="Actions de l'administrateur de plateforme, hors du cadre normal d'isolation par structure."
+      />
 
-      <div className="flex items-start gap-3 rounded-lg border border-border bg-surface-hover/40 px-4 py-3">
-        <ShieldCheck size={20} className="mt-0.5 shrink-0 text-text-muted" />
+      <div className="flex items-start gap-3 rounded-lg border border-accent/20 bg-accent/5 px-4 py-3">
+        <ShieldCheck size={18} className="mt-0.5 shrink-0 text-accent-light" />
         <p className="text-sm text-text-muted">
           Journal en lecture seule — infalsifiable : toute tentative de modification ou de suppression d'une entrée
           est rejetée côté serveur.
@@ -101,14 +109,24 @@ export function PlatformAuditPage() {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Filtres</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div>
-              <Label>Structure</Label>
-              <Select value={structureFilter} onChange={(e) => setStructureFilter(e.target.value)}>
+        <div className="border-b border-border p-4 sm:p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <Filter size={14} className="text-text-subtle" />
+            <h2 className="font-heading text-sm font-semibold text-text">Filtres</h2>
+            {hasFilters && (
+              <Badge status="accent" dot={false}>
+                Actifs
+              </Badge>
+            )}
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end">
+            <div className="min-w-0">
+              <Label htmlFor="platform-audit-structure">Structure</Label>
+              <Select
+                id="platform-audit-structure"
+                value={structureFilter}
+                onChange={(e) => setStructureFilter(e.target.value)}
+              >
                 <option value="">Toutes les structures</option>
                 {(structuresQuery.data ?? []).map((s) => (
                   <option key={s.id} value={s.id}>
@@ -117,24 +135,28 @@ export function PlatformAuditPage() {
                 ))}
               </Select>
             </div>
-            <div>
-              <Label>Du</Label>
-              <Input type="date" value={fromFilter} onChange={(e) => setFromFilter(e.target.value)} />
+            <div className="min-w-0">
+              <Label htmlFor="platform-audit-from">Du</Label>
+              <Input id="platform-audit-from" type="date" value={fromFilter} onChange={(e) => setFromFilter(e.target.value)} />
             </div>
-            <div>
-              <Label>Au</Label>
-              <Input type="date" value={toFilter} onChange={(e) => setToFilter(e.target.value)} />
+            <div className="min-w-0">
+              <Label htmlFor="platform-audit-to">Au</Label>
+              <Input id="platform-audit-to" type="date" value={toFilter} onChange={(e) => setToFilter(e.target.value)} />
             </div>
+            <Button variant="secondary" size="md" onClick={resetFilters} className="sm:justify-self-start">
+              <RotateCcw size={14} />
+              Réinitialiser les filtres
+            </Button>
           </div>
-          <Button variant="secondary" size="sm" onClick={resetFilters}>
-            Réinitialiser les filtres
-          </Button>
-        </CardContent>
-      </Card>
+        </div>
 
-      <Card>
         <CardHeader>
           <CardTitle>Journal</CardTitle>
+          {page && page.total > 0 && (
+            <span className="text-xs text-text-subtle">
+              {page.total} entrée{page.total > 1 ? "s" : ""}
+            </span>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           {auditQuery.isError ? (

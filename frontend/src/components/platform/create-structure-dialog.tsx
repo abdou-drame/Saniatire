@@ -110,7 +110,7 @@ export function CreateStructureDialog({ open, onOpenChange }: CreateStructureDia
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent>
+      <DialogContent className="w-[calc(100%-2rem)] max-w-xl">
         {step === "form" ? (
           <>
             <DialogHeader>
@@ -120,7 +120,7 @@ export function CreateStructureDialog({ open, onOpenChange }: CreateStructureDia
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <Label htmlFor="code">Code</Label>
                   <Input
@@ -156,7 +156,7 @@ export function CreateStructureDialog({ open, onOpenChange }: CreateStructureDia
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <Label htmlFor="trade_name">Nom commercial</Label>
                   <Input
@@ -175,7 +175,7 @@ export function CreateStructureDialog({ open, onOpenChange }: CreateStructureDia
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <Label htmlFor="phone">Téléphone</Label>
                   <Input
@@ -196,8 +196,8 @@ export function CreateStructureDialog({ open, onOpenChange }: CreateStructureDia
               </div>
 
               <div className="border-t border-border pt-3">
-                <p className="mb-3 text-xs font-medium text-text-muted">Premier administrateur de la structure</p>
-                <div className="grid grid-cols-2 gap-3">
+                <p className="mb-3 text-xs font-medium uppercase tracking-wide text-text-subtle">Premier administrateur de la structure</p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <Label htmlFor="admin_first_name">Prénom</Label>
                     <Input
@@ -254,13 +254,13 @@ export function CreateStructureDialog({ open, onOpenChange }: CreateStructureDia
               </DialogHeader>
 
               <div className="space-y-3 rounded-md border border-warning/30 bg-warning/10 p-3">
-                <p className="flex items-center gap-1.5 text-xs font-medium text-warning">
-                  <AlertTriangle size={14} />
+                <p className="flex items-start gap-1.5 text-xs font-medium text-warning">
+                  <AlertTriangle size={14} className="mt-0.5 shrink-0" />
                   Mot de passe affiché une seule fois — notez-le et transmettez-le de façon sécurisée à
                   l'administrateur. Il ne sera plus jamais consultable après la fermeture de cette fenêtre.
                 </p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 rounded border border-border bg-bg px-3 py-1.5 text-sm tracking-wider text-text">
+                <div className="flex flex-wrap items-center gap-2">
+                  <code className="min-w-0 flex-1 break-all rounded border border-border bg-bg px-3 py-1.5 text-sm tracking-wider text-text">
                     {result.admin_generated_password}
                   </code>
                   <Button type="button" variant="secondary" size="sm" onClick={handleCopy}>
