@@ -4,6 +4,8 @@ import {
   ArrowLeft,
   Building2,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   CreditCard,
   Hash,
   Info,
@@ -49,6 +51,8 @@ import type { Structure, StructureModule } from "@/types/api";
  * Un module du socle est toujours actif : interrupteur verrouillé, et le
  * backend refuse de toute façon sa désactivation (422).
  */
+const MODULES_PER_PAGE = 8;
+
 function ModuleRow({ structureId, module, readOnly }: {
   structureId: number;
   module: StructureModule;
@@ -217,6 +221,14 @@ export function PlatformStructureDetailPage() {
   const toggling = activateStructure.isPending || deactivateStructure.isPending;
 
   const activeModules = modulesQuery.data?.filter((m) => m.is_active).length ?? 0;
+  // Liste des modules paginée : affichée d'un bloc, elle était trop longue.
+  const [modulePage, setModulePage] = useState(0);
+  const modulePageCount = Math.max(1, Math.ceil((modulesQuery.data?.length ?? 0) / MODULES_PER_PAGE));
+  const currentModulePage = Math.min(modulePage, modulePageCount - 1);
+  const pagedModules = (modulesQuery.data ?? []).slice(
+    currentModulePage * MODULES_PER_PAGE,
+    (currentModulePage + 1) * MODULES_PER_PAGE,
+  );
 
   function handleArchive() {
     if (!structureQuery.data) return;
@@ -366,9 +378,36 @@ export function PlatformStructureDetailPage() {
                   <EmptyState icon={ListChecks} title="Aucun module" className="m-4 py-10" />
                 ) : structureId ? (
                   <div className="border-t border-border">
-                    {modulesQuery.data.map((module) => (
+                    {pagedModules.map((module) => (
                       <ModuleRow key={module.module} structureId={structureId} module={module} readOnly={isArchived} />
                     ))}
+                    {modulePageCount > 1 && (
+                      <div className="flex items-center justify-between border-t border-border px-5 py-2.5 text-xs text-text-muted">
+                        <span>
+                          Page {currentModulePage + 1} / {modulePageCount} — {modulesQuery.data.length} modules
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            className="rounded p-1.5 hover:bg-surface-hover disabled:pointer-events-none disabled:opacity-40"
+                            disabled={currentModulePage === 0}
+                            onClick={() => setModulePage(currentModulePage - 1)}
+                            aria-label="Modules précédents"
+                          >
+                            <ChevronLeft size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded p-1.5 hover:bg-surface-hover disabled:pointer-events-none disabled:opacity-40"
+                            disabled={currentModulePage >= modulePageCount - 1}
+                            onClick={() => setModulePage(currentModulePage + 1)}
+                            aria-label="Modules suivants"
+                          >
+                            <ChevronRight size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : null}
                 <PlatformNote icon={Info} className="border-t border-border px-5 py-3">

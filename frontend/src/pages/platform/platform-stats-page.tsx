@@ -40,13 +40,15 @@ export function PlatformStatsPage() {
   const statsQuery = usePlatformStats();
   const stats = statsQuery.data;
 
-  const monthColumns: DataTableColumn<PlatformStatsStructure>[] = (stats?.months ?? []).map((month) => ({
+  const monthColumns: DataTableColumn<PlatformStatsStructure>[] = (stats?.months ?? []).map((month, index) => ({
     key: `month-${month}`,
     header: formatMonthShort(month),
     align: "right",
     sortable: true,
     accessor: (row) => monthCount(row, month),
     render: (row) => formatNumber(monthCount(row, month)),
+    // Sur tablette, le mois le plus ancien laisse la place aux plus récents.
+    hideBelow: index === 0 ? "lg" : undefined,
   }));
 
   const nameColumn: DataTableColumn<PlatformStatsStructure> = {
@@ -68,7 +70,7 @@ export function PlatformStatsPage() {
   // les plus récents derrière un défilement.
   const columns: DataTableColumn<PlatformStatsStructure>[] = [
     nameColumn,
-    { key: "status", header: "Statut", render: (row) => <StructureStatusBadge structure={row} /> },
+    { key: "status", header: "Statut", hideBelow: "lg", render: (row) => <StructureStatusBadge structure={row} /> },
     {
       key: "users_active_30d",
       header: "Utilisateurs actifs 30 j",

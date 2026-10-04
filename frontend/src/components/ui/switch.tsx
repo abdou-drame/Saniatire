@@ -19,6 +19,8 @@ export function Switch({ checked, onCheckedChange, disabled, label }: SwitchProp
       onClick={() => onCheckedChange(!checked)}
       className={cn(
         "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-150",
+        // Zone de toucher élargie (40px de haut) sans changer l'apparence.
+        "before:absolute before:-inset-x-1 before:-inset-y-2.5 before:content-['']",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
         "disabled:pointer-events-none disabled:opacity-50",
         checked ? "bg-accent" : "bg-surface-hover border border-border-strong",

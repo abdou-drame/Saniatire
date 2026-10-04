@@ -16,12 +16,16 @@ const COLUMNS: DataTableColumn<PlatformStructureUser>[] = [
     key: "name",
     header: "Nom",
     render: (row) => (
-      <span className="whitespace-nowrap">
-        {row.first_name} {row.last_name}
-      </span>
+      <div className="min-w-0">
+        <p className="whitespace-nowrap">
+          {row.first_name} {row.last_name}
+        </p>
+        {/* Sous lg, l'e-mail passe sous le nom au lieu d'occuper une colonne. */}
+        <p className="break-all text-xs text-text-muted lg:hidden">{row.email}</p>
+      </div>
     ),
   },
-  { key: "email", header: "E-mail", render: (row) => <span className="whitespace-nowrap">{row.email}</span> },
+  { key: "email", header: "E-mail", hideBelow: "lg", render: (row) => <span className="whitespace-nowrap">{row.email}</span> },
   {
     key: "roles",
     header: "Rôles",
@@ -58,6 +62,7 @@ const COLUMNS: DataTableColumn<PlatformStructureUser>[] = [
   {
     key: "last_login_at",
     header: "Dernière connexion",
+    hideBelow: "lg",
     render: (row) => (
       <span className="whitespace-nowrap">{row.last_login_at ? formatDateTime(row.last_login_at) : "Jamais"}</span>
     ),
