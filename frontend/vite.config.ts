@@ -5,7 +5,7 @@ import tailwindcss from '@tailwindcss/vite'
 import fs from 'node:fs'
 import path from 'node:path'
 
-const DEFAULT_PROD_API = 'https://saliha-health-api.duckdns.org/api'
+const DEFAULT_PROD_API = 'https://api.salihahealth.com/api'
 
 /**
  * En-têtes de sécurité servis par `serve` en production (nixpacks.toml :
