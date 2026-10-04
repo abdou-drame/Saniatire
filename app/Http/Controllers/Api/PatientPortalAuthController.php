@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Domain\Patient\Models\Patient;
 use App\Domain\Shared\Auth\PortalActivationService;
 use App\Domain\Structure\Models\Structure;
+use App\Http\Controllers\Api\Concerns\SendsPasswordResetLinks;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\PatientResource;
 use Illuminate\Http\JsonResponse;
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\Password;
 
 class PatientPortalAuthController extends Controller
 {
+    use SendsPasswordResetLinks;
+
     public function __construct(private readonly PortalActivationService $activationService) {}
 
     public function activate(Request $request): JsonResponse
@@ -71,11 +74,7 @@ class PatientPortalAuthController extends Controller
 
     public function forgotPassword(Request $request): JsonResponse
     {
-        $request->validate(['email' => ['required', 'email']]);
-
-        $status = Password::broker('patients')->sendResetLink($request->only('email'));
-
-        return response()->json(['message' => __($status)]);
+        return $this->sendResetLinkWithoutDisclosure(Password::broker('patients'), $request);
     }
 
     public function resetPassword(Request $request): JsonResponse

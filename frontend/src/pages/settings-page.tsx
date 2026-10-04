@@ -37,7 +37,7 @@ export function SettingsPage() {
               </p>
               {user.two_factor_required ? (
                 <p className="flex items-center gap-1.5 text-xs text-text-subtle">
-                  <ShieldCheck size={14} /> Obligatoire pour votre rôle — ne peut pas être désactivée.
+                  <ShieldCheck size={14} /> Exigée par votre administrateur — ne peut pas être désactivée.
                 </p>
               ) : (
                 <Button variant="secondary" size="sm" onClick={() => setDisableOpen(true)}>

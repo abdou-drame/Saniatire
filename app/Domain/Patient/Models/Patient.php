@@ -66,7 +66,7 @@ class Patient extends Authenticatable
             'patient_password_reset',
             [
                 'patient_nom' => trim("{$this->first_name} {$this->last_name}"),
-                'lien_reinitialisation' => config('app.frontend_url', config('app.url'))."/portail-patient/reinitialiser-mot-de-passe?token={$token}&email={$this->email}",
+                'lien_reinitialisation' => config('app.frontend_url', config('app.url'))."/portail/reinitialiser-mot-de-passe?token={$token}&email=".urlencode($this->email),
             ],
         );
     }

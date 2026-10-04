@@ -2,7 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
 import { Building2, LoaderCircle, LogIn, ScrollText } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AuthNotice, AuthSwitchLinks, EmailField, PasswordField } from "@/components/auth/auth-fields";
 import { AuthShell, authButtonClass } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,8 @@ interface LoginResponse {
 export function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [notice, setNotice] = useState<string | null>(null);
+  const location = useLocation() as { state?: { notice?: string } };
+  const [notice, setNotice] = useState<string | null>(location.state?.notice ?? null);
   const [step, setStep] = useState<"credentials" | "totp">("credentials");
   const [challenge, setChallenge] = useState<string | null>(null);
   const [useRecovery, setUseRecovery] = useState(false);
@@ -129,9 +130,10 @@ export function LoginPage() {
             placeholder="••••••••"
           />
 
-          {/* Pas encore de page de réinitialisation pour le personnel : simple indication, sans lien. */}
-          <p className="text-right text-xs text-text-subtle">
-            Mot de passe oublié ? Contactez votre administrateur.
+          <p className="text-right text-xs">
+            <Link to="/mot-de-passe-oublie" className="text-accent-light hover:underline">
+              Mot de passe oublié ?
+            </Link>
           </p>
 
           {notice && <AuthNotice>{notice}</AuthNotice>}

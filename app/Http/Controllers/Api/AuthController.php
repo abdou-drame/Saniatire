@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Domain\Structure\Models\Structure;
 use App\Domain\User\Models\User;
 use App\Http\Controllers\Api\Concerns\ManagesAuthTokens;
+use App\Http\Controllers\Api\Concerns\SendsPasswordResetLinks;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use Illuminate\Http\JsonResponse;
@@ -16,7 +17,7 @@ use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
-    use ManagesAuthTokens;
+    use ManagesAuthTokens, SendsPasswordResetLinks;
 
     public function login(Request $request): JsonResponse
     {
@@ -53,8 +54,9 @@ class AuthController extends Controller
         // temporaire (cache, 5 min) échangé contre un vrai token via
         // TwoFactorController::challenge() après vérification du code TOTP
         // (ou d'un code de récupération). Aucun accès API n'est possible
-        // entre les deux appels.
-        if ($user->hasTwoFactorEnabled() && ! $user->hasRole('administrateur')) {
+        // entre les deux appels. Aucune exception de rôle : une 2FA affichée
+        // « activée » est toujours vérifiée à la connexion.
+        if ($user->hasTwoFactorEnabled()) {
             $challenge = Str::random(40);
             Cache::put("2fa_challenge:{$challenge}", $user->id, now()->addMinutes(5));
 
@@ -99,33 +101,43 @@ class AuthController extends Controller
      * Administration plateforme : le premier administrateur d'une structure
      * reçoit un mot de passe généré, jamais choisi par le platform admin —
      * EnsureNoPendingPasswordChange bloque tout le reste de l'API tant que
-     * ce compte n'est pas passé par ici. Contrairement à resetPassword()
-     * (token e-mail, mot de passe oublié), l'identité est déjà prouvée par
-     * le token d'authentification courant : pas de mot de passe actuel
-     * demandé, la temporaire n'a de toute façon jamais été choisie par
-     * l'utilisateur.
+     * ce compte n'est pas passé par ici.
+     *
+     * Le mot de passe actuel (y compris le temporaire, connu puisqu'il vient
+     * de servir à se connecter) est exigé : un jeton volé ne doit pas
+     * suffire à verrouiller le titulaire hors de son compte. Les autres
+     * sessions sont révoquées, seule la session courante reste ouverte.
      */
     public function changePassword(Request $request): JsonResponse
     {
         $data = $request->validate([
+            'current_password' => ['required', 'string'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
-        $request->user()->forceFill([
+        $user = $request->user();
+
+        if (! Hash::check($data['current_password'], $user->password)) {
+            return response()->json([
+                'message' => 'Mot de passe actuel incorrect.',
+                'errors' => ['current_password' => ['Mot de passe actuel incorrect.']],
+            ], 422);
+        }
+
+        $user->forceFill([
             'password' => Hash::make($data['password']),
             'must_change_password' => false,
         ])->save();
+
+        $currentTokenId = $user->currentAccessToken()?->getKey();
+        $user->tokens()->when($currentTokenId, fn ($query) => $query->whereKeyNot($currentTokenId))->delete();
 
         return response()->json(['message' => 'Mot de passe changé.']);
     }
 
     public function forgotPassword(Request $request): JsonResponse
     {
-        $request->validate(['email' => ['required', 'email']]);
-
-        $status = Password::sendResetLink($request->only('email'));
-
-        return response()->json(['message' => __($status)]);
+        return $this->sendResetLinkWithoutDisclosure(Password::broker(), $request);
     }
 
     public function resetPassword(Request $request): JsonResponse
@@ -144,6 +156,10 @@ class AuthController extends Controller
                     'failed_login_attempts' => 0,
                     'locked_until' => null,
                 ])->save();
+
+                // Mot de passe oublié = compte potentiellement compromis :
+                // toutes les sessions ouvertes sont fermées.
+                $user->tokens()->delete();
             }
         );
 

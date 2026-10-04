@@ -656,6 +656,12 @@ class DexPayPaymentTest extends TestCase
         // Lien expiré (au-delà des 24 h DexPay).
         $this->structure->update(['email' => 'direction@clinique-test.sn']);
         $this->travel(25)->hours();
+        // Le jeton plateforme expire après 12 h (sanctum.expiration) : on se reconnecte.
+        Auth::forgetGuards();
+        $this->platformToken = $this->postJson('/api/platform/login', [
+            'email' => 'platform-admin@example.test',
+            'password' => 'un-mot-de-passe-solide',
+        ])->assertOk()->json('token');
         $this->platform('POST', $uri)->assertStatus(422)->assertJsonPath('message', "Ce lien de paiement a expiré : générez-en un nouveau avant de l'envoyer.");
         $this->travelBack();
         $this->travelTo(Carbon::parse('2026-10-15 11:00:00'));

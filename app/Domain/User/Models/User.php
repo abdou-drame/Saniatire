@@ -44,30 +44,13 @@ class User extends Authenticatable
         'two_factor_recovery_codes',
     ];
 
-    /**
-        * Rôles pour lesquels la 2FA est obligatoire (étape 9 §2) : les niveaux
-        * directionnels et cliniques sensibles, à l'exception de l'administrateur
-        * qui utilise une connexion sans 2FA.
-     * et les seuls rôles cliniques atteignant les modules pma et
-     * sante_mentale (voir RolePermissionSeeder — specialiste_pma,
-     * psychiatre, psychologue sont les seuls rôles, avec directeur_medical,
-     * à porter ces permissions). Centralisé ici plutôt que dupliqué entre
-     * le middleware et les tests.
-     */
-    public const ROLES_REQUIRING_TWO_FACTOR = [
-        'direction',
-        'directeur_medical',
-        'specialiste_pma',
-        'psychiatre',
-        'psychologue',
-    ];
-
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'must_change_password' => 'boolean',
+            'two_factor_required' => 'boolean',
             'is_active' => 'boolean',
             'last_login_at' => 'datetime',
             'locked_until' => 'datetime',
@@ -82,9 +65,14 @@ class User extends Authenticatable
         return $this->two_factor_confirmed_at !== null;
     }
 
+    /**
+     * 2FA exigée pour ce compte par l'administrateur de la structure
+     * (UserController::updateTwoFactorRequirement). Hors fillable : jamais
+     * modifiable via la création/édition classique d'un compte.
+     */
     public function requiresTwoFactor(): bool
     {
-        return $this->hasAnyRole(self::ROLES_REQUIRING_TWO_FACTOR);
+        return (bool) $this->two_factor_required;
     }
 
     /**

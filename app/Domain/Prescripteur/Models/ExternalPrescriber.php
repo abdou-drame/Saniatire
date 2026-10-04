@@ -62,7 +62,7 @@ class ExternalPrescriber extends Authenticatable
             'patient_password_reset',
             [
                 'patient_nom' => $this->nom,
-                'lien_reinitialisation' => config('app.frontend_url', config('app.url'))."/portail-prescripteur/reinitialiser-mot-de-passe?token={$token}&email={$this->email}",
+                'lien_reinitialisation' => config('app.frontend_url', config('app.url'))."/portail-prescripteur/reinitialiser-mot-de-passe?token={$token}&email=".urlencode($this->email),
             ],
         );
     }

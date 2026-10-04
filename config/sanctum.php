@@ -50,7 +50,10 @@ return [
     |
     */
 
-    'expiration' => null,
+    // Audit sécurité : un jeton volé restait valable indéfiniment. 12 h
+    // couvrent une garde complète ; au-delà, l'application renvoie vers la
+    // page de connexion (intercepteur 401 du frontend).
+    'expiration' => (int) env('SANCTUM_EXPIRATION', 720),
 
     /*
     |--------------------------------------------------------------------------

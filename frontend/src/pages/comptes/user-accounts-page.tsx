@@ -12,7 +12,7 @@ import { Select } from "@/components/ui/select";
 import { UserAccountFormDialog } from "@/components/comptes/user-account-form-dialog";
 import { EmployeeProfileFormDialog } from "@/components/personnel/employee-profile-form-dialog";
 import { useAuth } from "@/hooks/use-auth";
-import { useUserAccounts, useUserRoles } from "@/hooks/use-user-accounts";
+import { useUpdateTwoFactorRequirement, useUserAccounts, useUserRoles } from "@/hooks/use-user-accounts";
 import { roleLabel } from "@/config/role-labels";
 import { apiErrorMessage } from "@/lib/api-error";
 import { formatDateTime } from "@/lib/datetime";
@@ -28,9 +28,12 @@ import type { UserAccount } from "@/types/api";
  * l'administrateur détient users.delete côté backend.
  */
 export function UserAccountsPage() {
-  const { hasPermission, hasModule } = useAuth();
+  const { hasPermission, hasModule, hasRole } = useAuth();
   const canCreate = hasPermission("users.create");
   const canUpdate = hasPermission("users.update");
+  const isAdmin = hasRole("administrateur");
+  const twoFactorMutation = useUpdateTwoFactorRequirement();
+  const [twoFactorError, setTwoFactorError] = useState<string | null>(null);
 
   const accountsQuery = useUserAccounts();
   const rolesQuery = useUserRoles();
@@ -106,14 +109,37 @@ export function UserAccountsPage() {
     {
       key: "two_factor",
       header: "2FA",
-      render: (row) =>
-        row.two_factor_required ? (
-          <Badge status={row.two_factor_enabled ? "success" : "warning"}>
-            {row.two_factor_enabled ? "Activée" : "À configurer"}
-          </Badge>
-        ) : (
-          <span className="text-xs text-text-subtle">—</span>
-        ),
+      // État réel du compte, exigée ou non. Seul l'administrateur peut
+      // exiger la 2FA (PUT /users/{id}/two-factor-requirement).
+      render: (row) => (
+        <div className="flex flex-wrap items-center gap-2">
+          {row.two_factor_enabled ? (
+            <Badge status="success">Activée</Badge>
+          ) : row.two_factor_required ? (
+            <Badge status="warning">À configurer</Badge>
+          ) : (
+            <Badge status="neutral">Non activée</Badge>
+          )}
+          {row.two_factor_required && <span className="text-xs text-text-subtle">Exigée</span>}
+          {isAdmin && (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={twoFactorMutation.isPending}
+              onClick={(event) => {
+                event.stopPropagation();
+                setTwoFactorError(null);
+                twoFactorMutation.mutate(
+                  { id: row.id, required: !row.two_factor_required },
+                  { onError: (error) => setTwoFactorError(apiErrorMessage(error)) },
+                );
+              }}
+            >
+              {row.two_factor_required ? "Ne plus exiger" : "Exiger"}
+            </Button>
+          )}
+        </div>
+      ),
     },
     {
       key: "last_login",
@@ -173,6 +199,10 @@ export function UserAccountsPage() {
               </Select>
             </div>
           </div>
+
+          {twoFactorError && (
+            <p className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">{twoFactorError}</p>
+          )}
 
           {accountsQuery.isError ? (
             <ErrorState message={apiErrorMessage(accountsQuery.error)} onRetry={() => accountsQuery.refetch()} />

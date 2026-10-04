@@ -26,7 +26,7 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
           <div>
             <h1 className="font-heading text-base font-semibold text-text">Double authentification requise</h1>
             <p className="mt-1 text-sm text-text-muted">
-              Votre rôle exige l'activation de la 2FA avant de continuer.
+              Votre administrateur exige l'activation de la 2FA avant de continuer.
             </p>
           </div>
           <TwoFactorSetupPanel onActivated={() => refreshUser()} />

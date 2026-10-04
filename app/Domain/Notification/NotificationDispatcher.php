@@ -57,6 +57,7 @@ class NotificationDispatcher
             }
 
             $rendered = $template->render($variables);
+            $stored = $template->render($this->withoutSecrets($variables));
 
             $notification = Notification::create([
                 'structure_id' => $structureId,
@@ -64,20 +65,46 @@ class NotificationDispatcher
                 'notifiable_id' => $notifiable->getKey(),
                 'type_evenement' => $typeEvenement,
                 'canal' => $canal,
-                'sujet_final' => $rendered['sujet'],
-                'contenu_final' => $rendered['contenu'],
+                'sujet_final' => $stored['sujet'],
+                'contenu_final' => $stored['contenu'],
                 'destinataire' => $destinataire,
                 'statut' => 'en_attente',
                 'scheduled_for' => $scheduledFor,
             ]);
 
             if ($notification->isDue()) {
-                $this->attemptSend($notification);
+                $this->attemptSend($notification, $rendered);
             }
         }
     }
 
-    public function attemptSend(Notification $notification): void
+    /**
+     * Liens porteurs d'un jeton (activation de portail, réinitialisation de
+     * mot de passe) : envoyés au destinataire, mais jamais conservés dans
+     * notification_logs, lisible par les administrateurs de la structure.
+     * Le jeton lui-même n'est stocké qu'en hash (portal_activations,
+     * password_reset_tokens).
+     *
+     * @param  array<string,mixed>  $variables
+     * @return array<string,mixed>
+     */
+    private function withoutSecrets(array $variables): array
+    {
+        foreach (self::SECRET_VARIABLES as $name) {
+            if (array_key_exists($name, $variables)) {
+                $variables[$name] = '[lien confidentiel, non conservé]';
+            }
+        }
+
+        return $variables;
+    }
+
+    private const SECRET_VARIABLES = ['lien_activation', 'lien_reinitialisation'];
+
+    /**
+     * @param  array{sujet: ?string, contenu: ?string}|null  $rendered  Contenu réel à envoyer, quand il diffère de la version conservée.
+     */
+    public function attemptSend(Notification $notification, ?array $rendered = null): void
     {
         $channelClass = config('notifications.channels')[$notification->canal] ?? null;
 
@@ -88,7 +115,14 @@ class NotificationDispatcher
         }
 
         try {
-            app($channelClass)->send($notification);
+            // Copie en mémoire, jamais enregistrée : seule la version sans
+            // secret reste en base.
+            $outgoing = $rendered === null ? $notification : (clone $notification)->forceFill([
+                'sujet_final' => $rendered['sujet'],
+                'contenu_final' => $rendered['contenu'],
+            ]);
+
+            app($channelClass)->send($outgoing);
 
             $notification->update(['statut' => 'envoyee', 'envoye_at' => now()]);
         } catch (\Throwable $e) {

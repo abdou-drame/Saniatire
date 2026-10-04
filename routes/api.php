@@ -106,8 +106,8 @@ use Illuminate\Support\Facades\Route;
 Route::post('/webhooks/dexpay', DexPayWebhookController::class)->middleware('throttle:120,1');
 
 Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
-Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
-Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
+Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:password-reset');
+Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:password-reset');
 
 // Étape 9 §2 : échange d'un challenge 2FA temporaire contre un vrai token —
 // volontairement sans auth:sanctum (l'utilisateur n'a justement pas encore
@@ -116,10 +116,10 @@ Route::post('/auth/2fa/challenge', [TwoFactorController::class, 'challenge'])->m
 
 // --- Étape 7b : portail patient (guard `patient`) ---
 
-Route::post('/portail-patient/activer', [PatientPortalAuthController::class, 'activate']);
+Route::post('/portail-patient/activer', [PatientPortalAuthController::class, 'activate'])->middleware('throttle:password-reset');
 Route::post('/portail-patient/login', [PatientPortalAuthController::class, 'login'])->middleware('throttle:login');
-Route::post('/portail-patient/mot-de-passe-oublie', [PatientPortalAuthController::class, 'forgotPassword']);
-Route::post('/portail-patient/reinitialiser-mot-de-passe', [PatientPortalAuthController::class, 'resetPassword']);
+Route::post('/portail-patient/mot-de-passe-oublie', [PatientPortalAuthController::class, 'forgotPassword'])->middleware('throttle:password-reset');
+Route::post('/portail-patient/reinitialiser-mot-de-passe', [PatientPortalAuthController::class, 'resetPassword'])->middleware('throttle:password-reset');
 
 Route::middleware(['auth:patient', 'tenant:patient', 'subscription:patient'])->prefix('portail-patient')->group(function () {
     Route::post('/logout', [PatientPortalAuthController::class, 'logout']);
@@ -150,10 +150,10 @@ Route::middleware(['auth:patient', 'tenant:patient', 'subscription:patient'])->p
 
 // --- Étape 7b : portail prescripteur externe (guard `prescriber`) ---
 
-Route::post('/portail-prescripteur/activer', [PrescriberPortalAuthController::class, 'activate']);
+Route::post('/portail-prescripteur/activer', [PrescriberPortalAuthController::class, 'activate'])->middleware('throttle:password-reset');
 Route::post('/portail-prescripteur/login', [PrescriberPortalAuthController::class, 'login'])->middleware('throttle:login');
-Route::post('/portail-prescripteur/mot-de-passe-oublie', [PrescriberPortalAuthController::class, 'forgotPassword']);
-Route::post('/portail-prescripteur/reinitialiser-mot-de-passe', [PrescriberPortalAuthController::class, 'resetPassword']);
+Route::post('/portail-prescripteur/mot-de-passe-oublie', [PrescriberPortalAuthController::class, 'forgotPassword'])->middleware('throttle:password-reset');
+Route::post('/portail-prescripteur/reinitialiser-mot-de-passe', [PrescriberPortalAuthController::class, 'resetPassword'])->middleware('throttle:password-reset');
 
 // Livraison B : le portail entier dépend du module `prescripteurs` de la
 // structure (401 + motif, voir EnsureModuleActive), sauf la déconnexion ;
@@ -279,6 +279,7 @@ Route::middleware(['auth:sanctum', 'tenant', 'two_factor', 'password_change', 's
     // User d'id "roles". Même patron que /structures/directory ci-dessus.
     Route::get('/users/roles', [UserController::class, 'roles']);
     Route::apiResource('users', UserController::class);
+    Route::put('/users/{user}/two-factor-requirement', [UserController::class, 'updateTwoFactorRequirement'])->whereNumber('user');
 
     Route::apiResource('patients', PatientController::class);
     Route::get('/patients/{patient}/timeline', [PatientController::class, 'timeline']);
@@ -600,7 +601,7 @@ Route::middleware(['auth:sanctum', 'tenant', 'two_factor', 'password_change', 's
 
     // --- Étape 9 §4 : assistance IA (jamais persisté automatiquement) ---
 
-    Route::post('/consultations/{consultation}/ai-summary', [AiAssistanceController::class, 'summary']);
+    Route::post('/consultations/{consultation}/ai-summary', [AiAssistanceController::class, 'summary'])->middleware('throttle:ai-assistance');
     Route::get('/consultations/{consultation}/anomalies', [AiAssistanceController::class, 'anomalies']);
 
     Route::apiResource('voice-dictations', VoiceDictationController::class)->only(['index', 'store', 'show']);

@@ -54,6 +54,11 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    // Application web (SPA) : cible des liens envoyés par email (réinitialisation
+    // de mot de passe, activation des portails). Sans elle, ces liens
+    // pointaient vers l'API.
+    'frontend_url' => env('FRONTEND_URL', env('APP_URL', 'http://localhost')),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

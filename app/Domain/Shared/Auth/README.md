@@ -7,23 +7,18 @@ Secret et codes de récupération chiffrés en base (`encrypted`/
 `encrypted:array` cast sur `User::two_factor_secret`/`two_factor_recovery_codes`
 — voir `User::casts()`).
 
-### Activable par tout utilisateur, obligatoire pour certains rôles
+### Activable par tout utilisateur, exigée compte par compte par l'administrateur
 
-`User::ROLES_REQUIRING_TWO_FACTOR` :
+Aucun rôle n'impose plus la 2FA d'office. L'administrateur de la structure
+l'exige pour un compte donné (`PUT /users/{user}/two-factor-requirement`,
+colonne `users.two_factor_required`, désactivée par défaut) ; ce compte
+doit alors la configurer à sa prochaine connexion et ne peut plus la
+désactiver. Tout utilisateur peut aussi l'activer volontairement
+(`POST /auth/2fa/setup`).
 
-- `administrateur`
-- `direction`
-- `directeur_medical`
-- `specialiste_pma`
-- `psychiatre`
-- `psychologue`
-
-Rationale : rôles à accès large (`administrateur`/`direction`/
-`directeur_medical`) ou aux données les plus sensibles selon le cahier des
-charges (PMA, santé mentale — déjà traitées avec une confidentialité
-renforcée dans le système de permissions, voir `RolePermissionSeeder`).
-Tout autre utilisateur peut activer la 2FA volontairement
-(`POST /auth/2fa/setup`) mais n'y est pas contraint.
+Une 2FA confirmée est toujours vérifiée à la connexion, quel que soit le
+rôle (l'administrateur en était auparavant dispensé alors que l'écran
+l'affichait « activée »).
 
 ### Flux d'activation (résout le problème de l'œuf et la poule)
 

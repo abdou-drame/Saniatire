@@ -15,7 +15,8 @@ class SendPortailActivationNotification implements ShouldQueue
     {
         $activatable = $event->activatable;
 
-        $portail = $activatable instanceof Patient ? 'portail-patient' : 'portail-prescripteur';
+        // Chemins de l'application web (App.tsx) : /portail et /portail-prescripteur.
+        $portail = $activatable instanceof Patient ? 'portail' : 'portail-prescripteur';
         $nom = $activatable instanceof Patient
             ? trim("{$activatable->first_name} {$activatable->last_name}")
             : $activatable->nom;

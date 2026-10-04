@@ -14,8 +14,8 @@ abstract class TestCase extends BaseTestCase
      * (EnsureTwoFactorSetupComplete) is a login-flow concern, and is
      * exercised deliberately through a genuine HTTP login by
      * Step9TwoFactorAuthTest. Every other fixture that just needs "a user
-     * with role X" would otherwise 423 the moment that role is added to
-     * User::ROLES_REQUIRING_TWO_FACTOR, for a reason unrelated to what it's
+     * with role X" would otherwise 423 the moment that account is given
+     * two_factor_required = true, for a reason unrelated to what it's
      * testing — so the precondition is satisfied here once, instead of in
      * every unrelated test.
      */

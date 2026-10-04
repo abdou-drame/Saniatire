@@ -26,7 +26,8 @@ class SmsChannel implements NotificationChannel
     {
         Log::info('[SMS simulé] Envoi à '.$notification->destinataire, [
             'type_evenement' => $notification->type_evenement,
-            'contenu' => $notification->contenu_final,
+            // Jamais le corps du message : il peut contenir un lien secret.
+            'longueur' => mb_strlen((string) $notification->contenu_final),
         ]);
     }
 

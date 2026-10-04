@@ -181,13 +181,14 @@ class PlatformAdministrationAuditTest extends TestCase
         Auth::forgetGuards();
         $this->withHeader('Authorization', "Bearer {$sanctumToken}")
             ->postJson('/api/auth/change-password', [
+                'current_password' => $generatedPassword,
                 'password' => 'un-nouveau-mot-de-passe-sur',
                 'password_confirmation' => 'un-nouveau-mot-de-passe-sur',
             ])
             ->assertOk();
 
-        // Mot de passe changé : 'administrateur' ne fait plus partie de
-        // User::ROLES_REQUIRING_TWO_FACTOR (commit 4f3968f), l'accès normal
+        // Mot de passe changé : la 2FA n'est exigée que compte par compte
+        // (two_factor_required, désactivée par défaut), l'accès normal
         // est donc restauré immédiatement, sans palier 2FA.
         Auth::forgetGuards();
         $this->withHeader('Authorization', "Bearer {$sanctumToken}")
@@ -338,12 +339,13 @@ class PlatformAdministrationAuditTest extends TestCase
         Auth::forgetGuards();
         $this->withHeader('Authorization', "Bearer {$sanctumToken}")
             ->postJson('/api/auth/change-password', [
+                'current_password' => $generatedPassword,
                 'password' => 'un-nouveau-mot-de-passe-sur',
                 'password_confirmation' => 'un-nouveau-mot-de-passe-sur',
             ])
             ->assertOk();
 
-        // 'administrateur' exige la 2FA (User::ROLES_REQUIRING_TWO_FACTOR) —
+        // Activation volontaire de la 2FA par l'administrateur —
         // même palier à franchir que dans le test de bout en bout ci-dessus
         // avant d'atteindre /api/audit-logs.
         Auth::forgetGuards();

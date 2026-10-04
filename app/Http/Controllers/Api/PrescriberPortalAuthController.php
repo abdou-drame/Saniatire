@@ -6,6 +6,7 @@ use App\Domain\Platform\ModuleCatalog;
 use App\Domain\Prescripteur\Models\ExternalPrescriber;
 use App\Domain\Shared\Auth\PortalActivationService;
 use App\Domain\Structure\Models\Structure;
+use App\Http\Controllers\Api\Concerns\SendsPasswordResetLinks;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ExternalPrescriberResource;
 use Illuminate\Http\JsonResponse;
@@ -15,6 +16,8 @@ use Illuminate\Support\Facades\Password;
 
 class PrescriberPortalAuthController extends Controller
 {
+    use SendsPasswordResetLinks;
+
     public function __construct(private readonly PortalActivationService $activationService) {}
 
     public function activate(Request $request): JsonResponse
@@ -78,11 +81,7 @@ class PrescriberPortalAuthController extends Controller
 
     public function forgotPassword(Request $request): JsonResponse
     {
-        $request->validate(['email' => ['required', 'email']]);
-
-        $status = Password::broker('external_prescribers')->sendResetLink($request->only('email'));
-
-        return response()->json(['message' => __($status)]);
+        return $this->sendResetLinkWithoutDisclosure(Password::broker('external_prescribers'), $request);
     }
 
     public function resetPassword(Request $request): JsonResponse

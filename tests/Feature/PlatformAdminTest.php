@@ -142,6 +142,7 @@ class PlatformAdminTest extends TestCase
 
         $this->actingAs($newAdmin)
             ->postJson('/api/auth/change-password', [
+                'current_password' => 'password',
                 'password' => 'un-nouveau-mot-de-passe',
                 'password_confirmation' => 'un-nouveau-mot-de-passe',
             ])

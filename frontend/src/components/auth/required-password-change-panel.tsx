@@ -11,10 +11,11 @@ import { apiErrorMessage } from "@/lib/api-error";
  * Écran de changement de mot de passe obligatoire (must_change_password),
  * affiché avant tout autre accès pour un compte créé avec un mot de passe
  * généré (ex. premier administrateur d'une structure créé depuis l'espace
- * plateforme). Consomme POST /auth/change-password, sans vérification de
- * l'ancien mot de passe côté backend.
+ * plateforme). Consomme POST /auth/change-password, qui exige le mot de
+ * passe actuel (le temporaire reçu) et ferme les autres sessions.
  */
 export function RequiredPasswordChangePanel({ onChanged }: { onChanged: () => void }) {
+  const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -22,6 +23,7 @@ export function RequiredPasswordChangePanel({ onChanged }: { onChanged: () => vo
   const mutation = useMutation({
     mutationFn: async () => {
       await api.post("/auth/change-password", {
+        current_password: currentPassword,
         password,
         password_confirmation: confirmation,
       });
@@ -51,13 +53,25 @@ export function RequiredPasswordChangePanel({ onChanged }: { onChanged: () => vo
       </p>
 
       <div>
+        <Label htmlFor="current-password">Mot de passe actuel</Label>
+        <Input
+          id="current-password"
+          type="password"
+          required
+          autoComplete="current-password"
+          autoFocus
+          value={currentPassword}
+          onChange={(e) => setCurrentPassword(e.target.value)}
+        />
+      </div>
+
+      <div>
         <Label htmlFor="new-password">Nouveau mot de passe</Label>
         <Input
           id="new-password"
           type="password"
           required
           autoComplete="new-password"
-          autoFocus
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />

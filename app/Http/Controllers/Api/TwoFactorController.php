@@ -82,7 +82,7 @@ class TwoFactorController extends Controller
 
         if ($user->requiresTwoFactor()) {
             return response()->json([
-                'message' => 'La 2FA est obligatoire pour ce rôle et ne peut pas être désactivée.',
+                'message' => "La 2FA est exigée pour ce compte par l'administrateur et ne peut pas être désactivée.",
             ], 422);
         }
 

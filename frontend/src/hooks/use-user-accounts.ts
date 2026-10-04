@@ -89,3 +89,19 @@ export function useUpdateUserAccount() {
     onSuccess: invalidate,
   });
 }
+
+/**
+ * Réservé à l'administrateur (403 sinon) : exige ou non la 2FA pour un
+ * compte. Une fois exigée, le compte doit la configurer à sa prochaine
+ * connexion.
+ */
+export function useUpdateTwoFactorRequirement() {
+  const invalidate = useInvalidateUserAccounts();
+  return useMutation({
+    mutationFn: async ({ id, required }: { id: number; required: boolean }) => {
+      const { data } = await api.put<{ data: UserAccount }>(`/users/${id}/two-factor-requirement`, { required });
+      return data.data;
+    },
+    onSuccess: invalidate,
+  });
+}

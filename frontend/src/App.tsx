@@ -19,6 +19,8 @@ import { DirectionPage } from "@/pages/direction/direction-page";
 import { DoctorDashboardPage } from "@/pages/doctor/doctor-dashboard-page";
 import { LandingPage } from "@/pages/landing-page";
 import { LoginPage } from "@/pages/login-page";
+import { ForgotPasswordPage } from "@/pages/forgot-password-page";
+import { ResetPasswordPage } from "@/pages/reset-password-page";
 import { LaboratoirePage } from "@/pages/laboratoire/laboratoire-page";
 import { ImageriePage } from "@/pages/imagerie/imagerie-page";
 import { HospitalisationPage } from "@/pages/hospitalisation/hospitalisation-page";
@@ -367,6 +369,8 @@ export default function App() {
       */}
       <Route element={<AuthProvider><Outlet /></AuthProvider>}>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/mot-de-passe-oublie" element={<ForgotPasswordPage />} />
+        <Route path="/reinitialiser-mot-de-passe" element={<ResetPasswordPage />} />
 
         <Route
           element={

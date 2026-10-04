@@ -25,13 +25,17 @@ use App\Domain\Referral\Events\ReferencementAccepte;
 use App\Domain\Referral\Events\ReferencementRefuse;
 use App\Domain\Shared\Auth\Events\PortailActivationDemandee;
 use App\Domain\Shared\Auth\Listeners\SendPortailActivationNotification;
+use App\Domain\Shared\Tenancy\TenantAwareValidator;
 use App\Domain\Shared\Tenancy\TenantScope;
 use App\Domain\Teleconsultation\Events\TeleconsultationPlanifiee;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Http\Request;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ServiceProvider;
 use RuntimeException;
 use Spatie\Activitylog\Models\Activity;
@@ -60,6 +64,13 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureLoginRateLimiting();
+        $this->configureSensitiveRateLimiting();
+
+        // Les règles exists: ne passent pas par TenantScope : voir
+        // TenantAwareValidator, qui les borne à la structure connectée.
+        Validator::resolver(fn ($translator, $data, $rules, $messages, $attributes) => new TenantAwareValidator($translator, $data, $rules, $messages, $attributes));
+
+        $this->configureStaffPasswordReset();
 
         // spatie/laravel-activitylog doesn't capture the request IP by
         // default; the socle's audit requirements ask for it explicitly.
@@ -131,6 +142,63 @@ class AppServiceProvider extends ServiceProvider
      * guards patient/prescripteur/plateforme, qui n'ont aucun verrouillage
      * de compte propre.
      */
+    /**
+     * « Mot de passe oublié » du personnel : la notification native de
+     * Laravel construit son lien avec route('password.reset'), qui n'existe
+     * pas dans cette API — d'où l'erreur 500. Le lien pointe vers l'écran
+     * de réinitialisation de l'application web, et l'email est en français.
+     */
+    private function configureStaffPasswordReset(): void
+    {
+        ResetPassword::createUrlUsing(fn ($user, string $token) => rtrim((string) config('app.frontend_url'), '/')
+            .'/reinitialiser-mot-de-passe?token='.urlencode($token).'&email='.urlencode($user->getEmailForPasswordReset()));
+
+        ResetPassword::toMailUsing(fn ($user, string $token) => (new MailMessage)
+            ->subject('Réinitialisation de votre mot de passe Saliha Health')
+            ->greeting('Bonjour,')
+            ->line('Vous avez demandé à réinitialiser le mot de passe de votre compte Saliha Health.')
+            ->action('Choisir un nouveau mot de passe', call_user_func(ResetPassword::$createUrlCallback, $user, $token))
+            ->line('Ce lien expire dans '.config('auth.passwords.users.expire').' minutes.')
+            ->line("Si vous n'êtes pas à l'origine de cette demande, ignorez cet email : votre mot de passe reste inchangé.")
+            ->salutation('Saliha Health'));
+    }
+
+    /**
+     * Limiteurs des actions sensibles hors connexion. password-reset couvre
+     * « mot de passe oublié », la réinitialisation et l'activation des
+     * portails (5/minute par email ou jeton + IP, 20/minute par IP) : sans
+     * eux, un robot pouvait inonder une boîte mail ou deviner des jetons.
+     * ai-assistance borne l'assistant IA, facturé à chaque appel.
+     */
+    private function configureSensitiveRateLimiting(): void
+    {
+        RateLimiter::for('password-reset', function (Request $request) {
+            $response = fn (Request $request, array $headers) => response()->json([
+                'message' => 'Trop de demandes. Réessayez dans '.($headers['Retry-After'] ?? 60).' secondes.',
+            ], 429, $headers);
+
+            $identity = mb_strtolower((string) ($request->input('email') ?? $request->input('token')));
+
+            return [
+                Limit::perMinute(5)->by('password-reset:'.sha1($identity).'|'.$request->ip())->response($response),
+                Limit::perMinute(20)->by('password-reset-ip:'.$request->ip())->response($response),
+            ];
+        });
+
+        RateLimiter::for('ai-assistance', function (Request $request) {
+            $response = fn (Request $request, array $headers) => response()->json([
+                'message' => "Trop de demandes à l'assistant IA. Réessayez dans ".($headers['Retry-After'] ?? 60).' secondes.',
+            ], 429, $headers);
+
+            $user = $request->user();
+
+            return [
+                Limit::perMinute(10)->by('ai-user:'.$user?->getKey())->response($response),
+                Limit::perDay(200)->by('ai-structure:'.$user?->structure_id)->response($response),
+            ];
+        });
+    }
+
     private function configureLoginRateLimiting(): void
     {
         RateLimiter::for('login', function (Request $request) {

@@ -6,6 +6,7 @@ use App\Domain\Structure\Models\Structure;
 use App\Domain\User\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use PragmaRX\Google2FA\Google2FA;
 use Tests\TestCase;
@@ -21,11 +22,12 @@ class Step9TwoFactorAuthTest extends TestCase
         $this->seed(RolePermissionSeeder::class);
     }
 
-    public function test_a_role_requiring_2fa_is_blocked_from_the_api_until_setup_is_complete(): void
+    public function test_an_account_required_by_the_admin_is_blocked_from_the_api_until_setup_is_complete(): void
     {
         $structure = Structure::factory()->create();
         $admin = User::factory()->for($structure)->create(['password' => Hash::make('correct-password')]);
         $admin->assignRole('direction');
+        $admin->forceFill(['two_factor_required' => true])->save();
 
         $login = $this->postJson('/api/auth/login', [
             'email' => $admin->email,
@@ -60,7 +62,7 @@ class Step9TwoFactorAuthTest extends TestCase
             ->assertOk();
     }
 
-    public function test_a_role_not_requiring_2fa_is_never_blocked(): void
+    public function test_an_account_without_the_requirement_is_never_blocked(): void
     {
         $structure = Structure::factory()->create();
         $secretary = User::factory()->for($structure)->create(['password' => Hash::make('correct-password')]);
@@ -142,11 +144,12 @@ class Step9TwoFactorAuthTest extends TestCase
         ])->assertStatus(422);
     }
 
-    public function test_2fa_cannot_be_disabled_for_a_role_that_requires_it(): void
+    public function test_2fa_cannot_be_disabled_when_the_admin_requires_it(): void
     {
         $structure = Structure::factory()->create();
         $admin = User::factory()->for($structure)->create(['password' => Hash::make('correct-password')]);
         $admin->assignRole('direction');
+        $admin->forceFill(['two_factor_required' => true])->save();
         $admin->generateTwoFactorSecret();
         $admin->confirmTwoFactor();
 
@@ -155,5 +158,83 @@ class Step9TwoFactorAuthTest extends TestCase
             ->assertStatus(422);
 
         $this->assertTrue($admin->fresh()->hasTwoFactorEnabled());
+    }
+
+    public function test_no_account_is_required_to_use_2fa_by_default_whatever_its_role(): void
+    {
+        $structure = Structure::factory()->create();
+
+        foreach (['direction', 'directeur_medical', 'psychiatre', 'administrateur'] as $role) {
+            $user = User::factory()->for($structure)->create(['password' => Hash::make('correct-password')]);
+            $user->assignRole($role);
+
+            $login = $this->postJson('/api/auth/login', ['email' => $user->email, 'password' => 'correct-password'])->assertOk();
+
+            $this->assertFalse($login->json('two_factor_setup_required'), "Rôle {$role}");
+            $this->assertNotNull($login->json('token'));
+        }
+    }
+
+    public function test_an_administrator_with_2fa_enabled_is_really_challenged_at_login(): void
+    {
+        // Avant correctif : l'administrateur voyait « 2FA activée » mais
+        // recevait un jeton directement, sans code.
+        $structure = Structure::factory()->create();
+        $admin = User::factory()->for($structure)->create(['password' => Hash::make('correct-password')]);
+        $admin->assignRole('administrateur');
+        $admin->generateTwoFactorSecret();
+        $admin->confirmTwoFactor();
+
+        $login = $this->postJson('/api/auth/login', ['email' => $admin->email, 'password' => 'correct-password'])->assertOk();
+
+        $this->assertTrue($login->json('two_factor_required'));
+        $this->assertNull($login->json('token'));
+    }
+
+    public function test_only_the_administrator_can_require_2fa_for_an_account(): void
+    {
+        $structure = Structure::factory()->create();
+        $admin = User::factory()->for($structure)->create();
+        $admin->assignRole('administrateur');
+        $rh = User::factory()->for($structure)->create();
+        $rh->assignRole('rh');
+        $target = User::factory()->for($structure)->create(['password' => Hash::make('correct-password')]);
+        $target->assignRole('secretaire');
+
+        $this->actingAs($rh)
+            ->putJson("/api/users/{$target->id}/two-factor-requirement", ['required' => true])
+            ->assertForbidden();
+        $this->assertFalse($target->fresh()->requiresTwoFactor());
+
+        // Le champ n'est pas modifiable via l'édition classique d'un compte.
+        $this->actingAs($admin)->putJson("/api/users/{$target->id}", [
+            'first_name' => $target->first_name,
+            'last_name' => $target->last_name,
+            'email' => $target->email,
+            'role' => 'secretaire',
+            'two_factor_required' => true,
+        ])->assertOk();
+        $this->assertFalse($target->fresh()->requiresTwoFactor());
+
+        $this->actingAs($admin)
+            ->putJson("/api/users/{$target->id}/two-factor-requirement", ['required' => true])
+            ->assertOk()
+            ->assertJsonPath('data.two_factor_required', true)
+            ->assertJsonPath('data.two_factor_enabled', false);
+
+        // Exigée : à la connexion suivante, le compte doit la configurer.
+        Auth::forgetGuards();
+        $login = $this->postJson('/api/auth/login', ['email' => $target->email, 'password' => 'correct-password'])->assertOk();
+        $this->assertTrue($login->json('two_factor_setup_required'));
+
+        Auth::forgetGuards();
+        $this->withToken($login->json('token'))->getJson('/api/patients')->assertStatus(423);
+
+        // Et l'administrateur peut lever l'exigence.
+        Auth::forgetGuards();
+        $this->actingAs($admin)
+            ->putJson("/api/users/{$target->id}/two-factor-requirement", ['required' => false])
+            ->assertOk();
+        $this->assertFalse($target->fresh()->requiresTwoFactor());
     }
 }

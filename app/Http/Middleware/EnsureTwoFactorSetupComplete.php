@@ -8,7 +8,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Étape 9 §2 : bloque l'accès au reste de l'API tant qu'un utilisateur dont
- * le rôle exige la 2FA (User::ROLES_REQUIRING_TWO_FACTOR) ne l'a pas
+ * le compte doit utiliser la 2FA (exigée par l'administrateur) ne l'a pas
  * confirmée. Le token émis au login reste valide pour /auth/2fa/setup,
  * /auth/2fa/confirm, /auth/me et /auth/logout uniquement — ces routes sont
  * délibérément placées hors du groupe portant ce middleware dans
@@ -24,7 +24,7 @@ class EnsureTwoFactorSetupComplete
         if ($user && method_exists($user, 'requiresTwoFactor')
             && $user->requiresTwoFactor()
             && ! $user->hasTwoFactorEnabled()) {
-            abort(423, "Authentification à deux facteurs obligatoire pour ce rôle : activez-la via /auth/2fa/setup avant de continuer.");
+            abort(423, "Authentification à deux facteurs exigée pour ce compte : activez-la via /auth/2fa/setup avant de continuer.");
         }
 
         return $next($request);

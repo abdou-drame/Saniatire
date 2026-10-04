@@ -28,6 +28,10 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Http\Middleware\HandleCors::class,
         ]);
 
+        // En-têtes de sécurité (CSP, HSTS, anti-cadre, nosniff) sur toutes
+        // les réponses, y compris les erreurs.
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
+
 
         // API-only backend: there is no "login" web route to redirect
         // guests to. Without this, Laravel's default redirectGuestsTo()
