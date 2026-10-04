@@ -1,4 +1,4 @@
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle, Video } from "lucide-react";
 import { useState } from "react";
 import { CloseTeleconsultationForm } from "@/components/teleconsultation/close-teleconsultation-form";
 import { Badge } from "@/components/ui/badge";
@@ -142,13 +142,20 @@ export function TeleconsultationDetail({
       </p>
 
       <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-text-subtle">Lien de session</p>
+        <p className="text-xs font-medium uppercase tracking-wide text-text-subtle">Salle vidéo</p>
         {teleconsultation.lien_session ? (
           <>
-            <p className="mt-1 whitespace-pre-wrap text-sm text-text">{teleconsultation.lien_session}</p>
-            <p className="mt-1 text-xs text-text-subtle">
-              Lien de session à transmettre manuellement au patient — aucune visioconférence n'est intégrée à
-              l'application.
+            <a
+              href={teleconsultation.lien_session}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent/90"
+            >
+              <Video size={16} />
+              Rejoindre la salle vidéo
+            </a>
+            <p className="mt-1 break-all text-xs text-text-subtle">
+              {teleconsultation.lien_session} — le patient retrouve ce lien dans son portail (Mes rendez-vous).
             </p>
           </>
         ) : (

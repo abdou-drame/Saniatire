@@ -278,6 +278,8 @@ export interface Appointment {
   reason: string | null;
   status: AppointmentStatus;
   is_recurring: boolean;
+  /** Salle vidéo de la téléconsultation liée (portail patient uniquement). */
+  lien_teleconsultation?: string | null;
   created_at: string;
   updated_at: string;
 }

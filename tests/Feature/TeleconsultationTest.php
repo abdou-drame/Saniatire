@@ -103,4 +103,32 @@ class TeleconsultationTest extends TestCase
             ->postJson("/api/teleconsultations/{$teleconsultationId}/start")
             ->assertStatus(422);
     }
+
+    public function test_a_unique_unguessable_jitsi_room_is_created_and_shown_to_the_patient_portal(): void
+    {
+        $patient = Patient::factory()->withPortalActivated()->for($this->structure)->create();
+        $appointments = Appointment::factory()->for($this->structure)->count(2)->create([
+            'site_id' => $this->site->id,
+            'patient_id' => $patient->id,
+            'practitioner_id' => $this->medecin->id,
+        ]);
+
+        $liens = $appointments->map(fn (Appointment $appointment) => $this->actingAs($this->medecin)
+            ->postJson('/api/teleconsultations', ['appointment_id' => $appointment->id])
+            ->assertCreated()
+            ->json('data.lien_session'));
+
+        foreach ($liens as $lien) {
+            $this->assertMatchesRegularExpression('#^https://meet\.jit\.si/saliha-[0-9a-f]{32}$#', $lien);
+        }
+        $this->assertNotSame($liens[0], $liens[1]);
+
+        $portail = collect($this->actingAs($patient, 'patient')
+            ->getJson('/api/portail-patient/rendez-vous')
+            ->assertOk()
+            ->json('data'))->keyBy('id');
+
+        $this->assertSame($liens[0], $portail[$appointments[0]->id]['lien_teleconsultation']);
+        $this->assertSame($liens[1], $portail[$appointments[1]->id]['lien_teleconsultation']);
+    }
 }

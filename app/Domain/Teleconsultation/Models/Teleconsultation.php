@@ -33,6 +33,23 @@ class Teleconsultation extends Model
         'ended_at',
     ];
 
+    protected static function booted(): void
+    {
+        static::creating(function (Teleconsultation $teleconsultation) {
+            $teleconsultation->lien_session ??= self::genererLienSession();
+        });
+    }
+
+    /**
+     * Salle Jitsi unique et non devinable : 128 bits aléatoires, jamais
+     * dérivés d'un identifiant (un RDV médical ne doit pas avoir une salle
+     * qu'un tiers pourrait retrouver).
+     */
+    public static function genererLienSession(): string
+    {
+        return rtrim((string) config('services.jitsi.base_url'), '/').'/saliha-'.bin2hex(random_bytes(16));
+    }
+
     protected function casts(): array
     {
         return [

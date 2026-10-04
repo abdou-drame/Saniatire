@@ -22,6 +22,12 @@ class AppointmentResource extends JsonResource
             'reason' => $this->reason,
             'status' => $this->status,
             'is_recurring' => $this->is_recurring,
+            // Salle vidéo de la téléconsultation liée, tant qu'elle n'est ni
+            // clôturée ni annulée (chargée par le portail patient).
+            'lien_teleconsultation' => $this->whenLoaded('teleconsultation', fn () => $this->teleconsultation
+                && in_array($this->teleconsultation->statut, ['planifiee', 'en_cours'], true)
+                    ? $this->teleconsultation->lien_session
+                    : null),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

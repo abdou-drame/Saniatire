@@ -32,6 +32,7 @@ class PatientPortalController extends Controller
     {
         $appointments = Appointment::query()
             ->where('patient_id', $request->user()->id)
+            ->with('teleconsultation')
             ->orderByDesc('starts_at')
             ->paginate();
 

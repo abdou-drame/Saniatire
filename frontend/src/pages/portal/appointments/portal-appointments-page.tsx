@@ -1,4 +1,4 @@
-import { CalendarDays, CalendarPlus, X } from "lucide-react";
+import { CalendarDays, CalendarPlus, Video, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
@@ -36,7 +36,7 @@ function AppointmentRow({
   const meta = STATUS_META[appointment.status];
   const isCancellable = appointment.status !== "annule" && appointment.status !== "termine";
   return (
-    <div className="flex items-center justify-between gap-4 rounded-md border border-border bg-surface px-4 py-3">
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-md border border-border bg-surface px-4 py-3">
       <div className="min-w-0">
         <p className="text-sm font-medium text-text">{formatDateTime(appointment.starts_at)}</p>
         <p className="truncate text-xs text-text-muted">
@@ -45,6 +45,17 @@ function AppointmentRow({
         {appointment.reason && <p className="truncate text-xs text-text-subtle">{appointment.reason}</p>}
       </div>
       <div className="flex shrink-0 items-center gap-2">
+        {appointment.lien_teleconsultation && appointment.status !== "annule" && (
+          <a
+            href={appointment.lien_teleconsultation}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-md bg-accent px-2.5 py-1.5 text-xs font-medium text-white hover:bg-accent/90"
+          >
+            <Video size={14} />
+            Rejoindre la vidéo
+          </a>
+        )}
         <Badge status={meta.status}>{meta.label}</Badge>
         {onCancel && isCancellable && (
           <button

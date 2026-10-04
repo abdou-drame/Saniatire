@@ -83,10 +83,12 @@ SESSION_SAME_SITE=none            # OBLIGATOIRE pour cross-domain (app.X → api
 # ── Cache (base de données — pas de Redis pour l'instant) ────────
 CACHE_STORE=database
 
-# ── File d'attente — SYNC pour ce premier déploiement ───────────
-# Pas de worker séparé à gérer. À changer en "database" + worker
-# si le volume d'envoi d'emails/notifications augmente.
-QUEUE_CONNECTION=sync
+# ── File d'attente — traitée par le service sanitaire-worker ────
+# (voir « Étape 6 bis »)
+QUEUE_CONNECTION=database
+
+# ── Application web : cible des liens envoyés par email ──────────
+FRONTEND_URL=https://app.[mondomaine]
 
 # ── Logs ─────────────────────────────────────────────────────────
 LOG_CHANNEL=stack
@@ -205,25 +207,38 @@ Sans ça, `request()->secure()` retourne `false`, et Laravel génère des URLs e
 
 ---
 
-## Étape 6 — Volume persistant (stockage de fichiers)
+## Étape 6 — Volume persistant (fichiers uploadés)
 
-Le répertoire `storage/` de Laravel contient :
-- Les **logs** (`storage/logs/laravel.log`)
-- Les **sessions** si driver `file` (ici on utilise `database`, OK)
-- Le **cache** si driver `file` (ici on utilise `database`, OK)
-- Les **fichiers uploadés** (`storage/app/public/`) si le projet en a
+À chaque redéploiement, le conteneur est recréé : tout ce qui a été écrit sur son disque est perdu, sauf sur un volume persistant.
 
-**Avec Dokploy** : à chaque redéploiement, le container est recréé et le système de fichiers est **remis à zéro** sauf si vous montez un volume persistant.
+**Ce qui est stocké sur disque** : uniquement `storage/app/`. Aujourd'hui, seuls les enregistrements audio des **dictées vocales** y sont écrits (`storage/app/private/voice-dictations/`). Tout le reste (dossiers patients, résultats, comptes rendus, factures, notifications, sessions, cache, file d'attente) est en base PostgreSQL. Tout futur upload passera par ce même dossier.
 
-**Action recommandée dans Dokploy** :
+**Ne pas monter `/app/storage` en entier** : `storage/framework/` contient les vues compilées au build ; un volume vide par-dessus provoquerait des erreurs 500. Les logs Laravel passent par les logs du conteneur.
 
-1. Allez dans l'app `sanitaire-api` → **Volumes**
-2. Ajoutez un volume :
-   - **Host Path** : `/opt/sanitaire/storage` (un répertoire de votre serveur)
-   - **Container Path** : `/app/storage`
-3. Cela préserve logs et fichiers entre les redéploiements.
+**Dans Dokploy** :
 
-> Sans ce volume, les logs sont perdus à chaque redéploiement. Pour un projet de santé avec audit trail, c'est fortement recommandé.
+1. `sanitaire-api` → onglet **Advanced** → **Volumes / Mounts** → **Add Volume**.
+2. Type : **Volume Mount** (volume Docker nommé, pas Bind Mount).
+3. **Volume Name** : `sanitaire-storage-app` — **Mount Path** : `/app/storage/app`.
+4. **Create**, puis **Redeploy**.
+
+**Vérifier** : terminal de `sanitaire-api` → `echo test > storage/app/persistance.txt` → **Redeploy** → `cat storage/app/persistance.txt` affiche toujours `test` → `rm storage/app/persistance.txt`.
+
+---
+
+## Étape 6 bis — File d'attente et planificateur (service `sanitaire-worker`)
+
+Les notifications (RDV créé/modifié/annulé, résultats, congés, référencement, lien de paiement) passent par la file `database` ; les rappels programmés par le planificateur (`notifications:process-due`, chaque minute). Un second service les traite : `deploy/worker.sh` lance `queue:work` et `schedule:work`, et s'arrête en erreur si l'un des deux tombe (Dokploy redémarre alors le conteneur).
+
+1. **sanitaire-api → Environment** : `QUEUE_CONNECTION=database` → **Save** → **Redeploy**.
+2. Projet → **Create Service** → **Application** → nom `sanitaire-worker`.
+3. **General** : même source GitHub, branche `main`, **Build Type** : Nixpacks, **Build Path** `/`.
+4. **Environment** : copier **toutes** les variables de `sanitaire-api` (même base, même `APP_KEY`, `QUEUE_CONNECTION=database`).
+5. **Advanced → Run Command** : `bash deploy/worker.sh` → **Save**. (Ici Run Command est voulu : il remplace le démarrage HTTP de `nixpacks.toml`, donc pas de migration ni de serveur web dans le worker.)
+6. **Domains** : aucun. **Deploy**.
+7. **Logs** du worker : lignes `INFO  Processing jobs from the [default] queue.` puis, à chaque action, `... RUNNING` / `... DONE`.
+
+Redémarrage automatique : Dokploy lance les applications comme services Docker Swarm, relancés automatiquement quand le conteneur s'arrête (vérifiable dans **Advanced → Swarm Settings → Restart Policy** : laisser vide ou `Condition: any`).
 
 ---
 

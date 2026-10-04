@@ -60,4 +60,10 @@ return [
         'model' => env('ANTHROPIC_MODEL', 'claude-sonnet-5'),
     ],
 
+    // Téléconsultation : salles vidéo Jitsi Meet (instance publique par
+    // défaut, sans compte). Voir Teleconsultation::genererLienSession().
+    'jitsi' => [
+        'base_url' => env('JITSI_BASE_URL', 'https://meet.jit.si'),
+    ],
+
 ];

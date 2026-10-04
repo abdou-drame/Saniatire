@@ -5,6 +5,7 @@ namespace App\Domain\Appointment\Models;
 use App\Domain\Patient\Models\Patient;
 use App\Domain\Shared\Tenancy\BelongsToTenant;
 use App\Domain\Structure\Models\Site;
+use App\Domain\Teleconsultation\Models\Teleconsultation;
 use App\Domain\User\Models\User;
 use Carbon\CarbonInterface;
 use Database\Factories\AppointmentFactory;
@@ -12,6 +13,7 @@ use DateTimeInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Spatie\Activitylog\LogOptions;
@@ -63,6 +65,11 @@ class Appointment extends Model
     public function site(): BelongsTo
     {
         return $this->belongsTo(Site::class);
+    }
+
+    public function teleconsultation(): HasOne
+    {
+        return $this->hasOne(Teleconsultation::class);
     }
 
     public function series(): BelongsTo
