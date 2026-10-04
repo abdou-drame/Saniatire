@@ -1,0 +1,73 @@
+# Nginx devant PHP-FPM (voir deploy/start.sh, qui remplace les @VARIABLES@).
+# Nginx sert les fichiers statiques de public/ et transmet le reste à
+# PHP-FPM, qui traite plusieurs requêtes en parallèle.
+
+# Même utilisateur que PHP-FPM et qu'avant (php artisan serve) ; le défaut
+# « nobody:nobody » échoue sous Ubuntu, où le groupe s'appelle nogroup.
+user root root;
+worker_processes auto;
+daemon off;
+pid /tmp/nginx/nginx.pid;
+error_log stderr warn;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include @NGINX_CONF_DIR@/mime.types;
+    default_type application/octet-stream;
+
+    access_log off;
+    server_tokens off;
+    sendfile on;
+    tcp_nopush on;
+    keepalive_timeout 65;
+
+    # Le binaire Nix n'a pas de répertoires temporaires utilisables par défaut.
+    client_body_temp_path /tmp/nginx/client_body;
+    fastcgi_temp_path /tmp/nginx/fastcgi;
+    proxy_temp_path /tmp/nginx/proxy;
+    uwsgi_temp_path /tmp/nginx/uwsgi;
+    scgi_temp_path /tmp/nginx/scgi;
+
+    # Plus grand fichier accepté par l'application : la dictée vocale (20 Mo).
+    client_max_body_size 25m;
+
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types application/json application/javascript text/css text/plain image/svg+xml;
+
+    server {
+        listen @PORT@ default_server;
+        root @APP_DIR@/public;
+        index index.php;
+        charset utf-8;
+
+        location / {
+            try_files $uri $uri/ /index.php?$query_string;
+        }
+
+        location = /favicon.ico { access_log off; log_not_found off; }
+        location = /robots.txt  { access_log off; log_not_found off; }
+
+        location ~ \.php$ {
+            try_files $uri =404;
+            fastcgi_pass unix:/tmp/php-fpm.sock;
+            fastcgi_index index.php;
+            include @NGINX_CONF_DIR@/fastcgi_params;
+            fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+            fastcgi_param DOCUMENT_ROOT $realpath_root;
+            fastcgi_hide_header X-Powered-By;
+            fastcgi_read_timeout 120s;
+            fastcgi_buffers 16 16k;
+            fastcgi_buffer_size 32k;
+        }
+
+        # Fichiers cachés (.env, .git…) jamais servis.
+        location ~ /\.(?!well-known).* {
+            deny all;
+        }
+    }
+}
