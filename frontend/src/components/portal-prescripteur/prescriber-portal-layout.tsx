@@ -42,7 +42,7 @@ export function PrescriberPortalLayout() {
             Déconnexion
           </button>
         </div>
-        <nav className="mx-auto flex max-w-3xl gap-1 overflow-x-auto px-4 pb-2">
+        <nav className="mx-auto flex max-w-3xl flex-wrap gap-1 px-4 pb-2">
           {navItems.map((item) => (
             <NavLink
               key={item.href}

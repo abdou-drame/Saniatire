@@ -143,6 +143,7 @@ export function UserAccountsPage() {
     },
     {
       key: "last_login",
+      hideBelow: "lg",
       header: "Dernière connexion",
       render: (row) => (row.last_login_at ? formatDateTime(row.last_login_at) : "Jamais"),
     },

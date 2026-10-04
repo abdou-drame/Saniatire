@@ -123,10 +123,11 @@ function HeaderSkeleton() {
 
 type TabKey = "abonnement" | "acces" | "activite";
 
-const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
-  { key: "abonnement", label: "Abonnement & modules", icon: CreditCard },
-  { key: "acces", label: "Administrateurs & utilisateurs", icon: Users },
-  { key: "activite", label: "Activité", icon: Activity },
+// shortLabel : affiché sous sm pour que les trois onglets tiennent sans défilement.
+const TABS: { key: TabKey; label: string; shortLabel: string; icon: LucideIcon }[] = [
+  { key: "abonnement", label: "Abonnement & modules", shortLabel: "Abonnement", icon: CreditCard },
+  { key: "acces", label: "Administrateurs & utilisateurs", shortLabel: "Accès", icon: Users },
+  { key: "activite", label: "Activité", shortLabel: "Activité", icon: Activity },
 ];
 
 /** Onglets accessibles (flèches gauche/droite). Les panneaux restent montés : seul l'affichage change. */
@@ -172,7 +173,8 @@ function DetailTabs({ active, onChange }: { active: TabKey; onChange: (key: TabK
             )}
           >
             <tab.icon size={15} className={selected ? "text-accent-light" : undefined} />
-            {tab.label}
+            <span className="sm:hidden">{tab.shortLabel}</span>
+            <span className="hidden sm:inline">{tab.label}</span>
           </button>
         );
       })}

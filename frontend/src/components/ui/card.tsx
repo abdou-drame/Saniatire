@@ -17,7 +17,19 @@ Card.displayName = "Card";
 
 export const CardHeader = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("flex items-center justify-between gap-4 p-5 pb-3", className)} {...props} />
+    <div
+      ref={ref}
+      className={cn(
+        // Titre et actions passent à la ligne au lieu de pousser le bouton
+        // hors de l'écran. Sous sm, une action placée directement dans
+        // l'en-tête (bouton, lien ou groupe de boutons) prend toute la
+        // largeur sous le titre.
+        "flex flex-wrap items-center justify-between gap-x-4 gap-y-3 p-5 pb-3",
+        "max-sm:[&>a]:w-full max-sm:[&>button]:w-full max-sm:[&>div:not(:first-child)]:w-full max-sm:[&>div:not(:first-child)]:flex-wrap",
+        className,
+      )}
+      {...props}
+    />
   ),
 );
 CardHeader.displayName = "CardHeader";

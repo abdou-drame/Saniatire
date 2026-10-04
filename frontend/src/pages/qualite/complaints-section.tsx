@@ -69,7 +69,7 @@ export function ComplaintsSection() {
   const canCreate = hasPermission("reclamations.create");
 
   const columns: DataTableColumn<Complaint>[] = [
-    { key: "id", header: "ID", align: "right", accessor: (row) => row.id },
+    { key: "id", hideBelow: "lg", header: "ID", align: "right", accessor: (row) => row.id },
     { key: "motif", header: "Motif", accessor: (row) => row.motif },
     { key: "service", header: "Service", render: (row) => row.service_concerne ?? "—" },
     {
@@ -87,6 +87,7 @@ export function ComplaintsSection() {
     { key: "patient", header: "Patient", render: (row) => patientLabel(patientsDirectory, row.patient_id) },
     {
       key: "gestionnaire",
+      hideBelow: "lg",
       header: "Gestionnaire",
       render: (row) => gestionnaireLabel(usersDirectory, row.gestionnaire_id, row.gestionnaire_label),
     },

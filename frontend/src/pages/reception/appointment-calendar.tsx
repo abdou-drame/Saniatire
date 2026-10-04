@@ -172,7 +172,7 @@ export function AppointmentCalendar({ siteId }: AppointmentCalendarProps) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-md border border-border p-0.5">
             {(["jour", "semaine", "mois"] as ViewMode[]).map((mode) => (
               <button
@@ -210,11 +210,11 @@ export function AppointmentCalendar({ siteId }: AppointmentCalendarProps) {
           <span className="text-sm font-medium capitalize text-text">{rangeLabel}</span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <Select
             value={practitionerId}
             onChange={(e) => setPractitionerId(e.target.value)}
-            className="w-52"
+            className="w-full sm:w-52"
           >
             <option value="">Tous les praticiens</option>
             {(practitioners.data ?? []).map((p) => (
@@ -223,7 +223,7 @@ export function AppointmentCalendar({ siteId }: AppointmentCalendarProps) {
               </option>
             ))}
           </Select>
-          <Button size="sm" onClick={openCreate}>
+          <Button size="sm" onClick={openCreate} className="w-full sm:w-auto">
             <Plus size={14} />
             Nouveau rendez-vous
           </Button>

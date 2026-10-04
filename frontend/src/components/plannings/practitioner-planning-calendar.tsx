@@ -97,9 +97,42 @@ export function PractitionerPlanningCalendar({ planning, isLoading, from, to, on
     return <TableSkeleton rows={3} columns={7} />;
   }
 
+  const daysInRange = weeks.flat().filter((day) => day >= rangeStart && day <= rangeEnd);
+
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-7 gap-1.5">
+      {/* Sous md, les cases de la grille (~44px) rendent les créneaux illisibles :
+          liste jour par jour à la place. */}
+      <ul className="divide-y divide-border rounded-md border border-border md:hidden">
+        {daysInRange.map((day) => {
+          const key = toDateKey(day);
+          const dayHoraires = horairesByDay.get(key) ?? [];
+          const isConge = joursConges.has(key);
+          return (
+            <li key={key} className="flex items-start gap-3 px-3 py-2.5">
+              <div className="w-12 shrink-0 leading-tight">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-text-subtle">
+                  {WEEKDAY_HEADERS[(day.getDay() + 6) % 7]}
+                </p>
+                <p className="font-tabular text-sm text-text">{day.getDate()}</p>
+              </div>
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+                {isConge && (
+                  <Badge status="neutral" dot={false} className="text-[10px]">
+                    En congé
+                  </Badge>
+                )}
+                {dayHoraires.map((horaire) => (
+                  <ScheduleChip key={horaire.work_schedule_id} horaire={horaire} onClick={onScheduleClick} />
+                ))}
+                {!isConge && dayHoraires.length === 0 && <span className="text-xs text-text-subtle">Aucun horaire</span>}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+
+      <div className="hidden grid-cols-7 gap-1.5 md:grid">
         {WEEKDAY_HEADERS.map((label) => (
           <div key={label} className="px-1 pb-1 text-center text-[11px] font-medium uppercase tracking-wide text-text-subtle">
             {label}
@@ -107,7 +140,7 @@ export function PractitionerPlanningCalendar({ planning, isLoading, from, to, on
         ))}
       </div>
 
-      <div className="space-y-1.5">
+      <div className="hidden space-y-1.5 md:block">
         {weeks.map((week, weekIndex) => (
           <div key={weekIndex} className="grid grid-cols-7 gap-1.5">
             {week.map((day) => {

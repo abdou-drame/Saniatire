@@ -1,5 +1,5 @@
-import { Bell, LogOut, Search, User as UserIcon } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { Bell, LogOut, Menu, Search, User as UserIcon } from "lucide-react";
+import { useState, type ReactNode, type Ref } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +17,10 @@ export interface TopbarProps {
   userName?: string;
   userRole?: string;
   onLogout?: () => void;
+  /** Bouton menu (en dessous de lg) qui ouvre le tiroir de navigation. */
+  onOpenMenu?: () => void;
+  isMenuOpen?: boolean;
+  menuButtonRef?: Ref<HTMLButtonElement>;
   searchQuery?: string;
   onSearchQueryChange?: (value: string) => void;
   searchResults?: Patient[];
@@ -33,6 +37,9 @@ export function Topbar({
   userName = "Utilisateur",
   userRole = "—",
   onLogout,
+  onOpenMenu,
+  isMenuOpen = false,
+  menuButtonRef,
   searchQuery = "",
   onSearchQueryChange,
   searchResults = [],
@@ -45,14 +52,28 @@ export function Topbar({
   const dropdownVisible = isFocused && isSearchOpen;
 
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-bg px-6">
-      <div className="min-w-0">
+    <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-border bg-bg px-3 sm:gap-4 sm:px-6">
+      {onOpenMenu && (
+        <button
+          ref={menuButtonRef}
+          type="button"
+          onClick={onOpenMenu}
+          aria-label="Ouvrir le menu"
+          aria-expanded={isMenuOpen}
+          aria-controls="app-drawer"
+          className="shrink-0 rounded-md p-2 text-text-muted hover:bg-surface-hover hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent lg:hidden"
+        >
+          <Menu size={20} />
+        </button>
+      )}
+      {/* Titre masqué sur téléphone : la page affiche déjà le sien. */}
+      <div className="hidden min-w-0 sm:block">
         {breadcrumb ?? (
           <h1 className="truncate font-heading text-base font-semibold text-text">{title}</h1>
         )}
       </div>
 
-      <div className="relative flex max-w-md flex-1 items-center">
+      <div className="relative flex min-w-0 max-w-md flex-1 items-center">
         <div className="relative w-full">
           <Search
             size={15}
@@ -61,7 +82,8 @@ export function Topbar({
           />
           <input
             type="search"
-            placeholder="Rechercher un patient (nom, n° dossier)..."
+            placeholder="Rechercher un patient…"
+            aria-label="Rechercher un patient (nom, n° dossier)"
             value={searchQuery}
             onChange={(e) => onSearchQueryChange?.(e.target.value)}
             onFocus={() => setIsFocused(true)}
@@ -104,7 +126,7 @@ export function Topbar({
         )}
       </div>
 
-      <div className="flex shrink-0 items-center gap-3">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-3">
         <button
           className="relative rounded-md p-2 text-text-muted hover:bg-surface-hover hover:text-text"
           aria-label="Notifications"
@@ -119,18 +141,27 @@ export function Topbar({
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2.5 rounded-md py-1 pl-1 pr-2 hover:bg-surface-hover">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-hover text-text-muted">
+            <button
+              aria-label={`Mon compte — ${userName}`}
+              className="flex items-center gap-2.5 rounded-md p-1 hover:bg-surface-hover md:pr-2"
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-hover text-text-muted">
                 <UserIcon size={16} />
               </div>
-              <div className="text-left leading-tight">
+              {/* Nom et rôle à partir de md ; avatar seul en dessous. */}
+              <div className="hidden text-left leading-tight md:block">
                 <p className="text-sm font-medium text-text">{userName}</p>
                 <p className="text-xs text-text-subtle">{userRole}</p>
               </div>
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent>
-            <DropdownMenuLabel>Mon compte</DropdownMenuLabel>
+            <DropdownMenuLabel>
+              Mon compte
+              <span className="block truncate text-xs font-normal text-text-muted md:hidden">
+                {userName} · {userRole}
+              </span>
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={onLogout} className="text-danger focus:bg-danger/10">
               <LogOut size={15} />

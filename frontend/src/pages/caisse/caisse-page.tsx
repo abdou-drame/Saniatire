@@ -67,7 +67,7 @@ export function CaissePage() {
 
   const closedSessionColumns: DataTableColumn<CashSession>[] = [
     { key: "caissier", header: "Caissier", render: (row) => row.caissier_label ?? `#${row.caissier_id}` },
-    { key: "site", header: "Site", render: (row) => row.site?.name ?? "—" },
+    { key: "site", hideBelow: "lg", header: "Site", render: (row) => row.site?.name ?? "—" },
     { key: "ouverte_le", header: "Ouverte le", render: (row) => formatDateTime(row.ouverte_le) },
     {
       key: "fermee_le",
@@ -76,6 +76,7 @@ export function CaissePage() {
     },
     {
       key: "montant_ouverture",
+      hideBelow: "lg",
       header: "Montant ouverture",
       align: "right",
       accessor: (row) => row.montant_ouverture,

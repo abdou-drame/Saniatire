@@ -165,8 +165,25 @@ function ValidationSection() {
   }
 
   const columns: DataTableColumn<LeaveRequest>[] = [
-    { key: "requester", header: "Demandeur", render: (row) => requesterLabel(row.user_id) },
-    ...LEAVE_COLUMNS_BASE.filter((column) => column.key !== "statut"),
+    // Approuver / Refuser doivent rester visibles sans défilement : sur
+    // tablette le commentaire, sur téléphone aussi le type et les dates,
+    // passent sous le nom du demandeur au lieu d'occuper une colonne.
+    {
+      key: "requester",
+      header: "Demandeur",
+      render: (row) => (
+        <div className="min-w-0">
+          <p>{requesterLabel(row.user_id)}</p>
+          <p className="text-xs text-text-muted md:hidden">
+            {LEAVE_TYPE_LABEL[row.type]} · {formatDate(row.date_debut)} → {formatDate(row.date_fin)}
+          </p>
+          {row.commentaire && <p className="text-xs text-text-subtle lg:hidden">{row.commentaire}</p>}
+        </div>
+      ),
+    },
+    ...LEAVE_COLUMNS_BASE.filter((column) => column.key !== "statut").map(
+      (column): DataTableColumn<LeaveRequest> => ({ ...column, hideBelow: column.key === "commentaire" ? "lg" : "md" }),
+    ),
     {
       key: "actions",
       header: "Actions",

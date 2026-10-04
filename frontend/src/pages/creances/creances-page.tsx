@@ -60,6 +60,7 @@ export function CreancesPage() {
     },
     {
       key: "date_emission",
+      hideBelow: "lg",
       header: "Date d'émission",
       accessor: (row) => row.date_emission,
       render: (row) => formatDate(row.date_emission),

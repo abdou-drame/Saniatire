@@ -52,7 +52,7 @@ export function FacturationPage() {
   const invoiceColumns: DataTableColumn<Invoice>[] = [
     { key: "numero", header: "Numéro", accessor: (row) => row.numero },
     { key: "patient", header: "Patient", render: (row) => patientLabel(row.patient) },
-    { key: "site", header: "Site", render: (row) => row.site?.name ?? "—" },
+    { key: "site", hideBelow: "lg", header: "Site", render: (row) => row.site?.name ?? "—" },
     {
       key: "montant_total",
       header: "Montant total",
@@ -79,7 +79,7 @@ export function FacturationPage() {
       header: "Statut",
       render: (row) => <Badge status={INVOICE_STATUS_BADGE[row.statut]}>{INVOICE_STATUS_LABEL[row.statut]}</Badge>,
     },
-    { key: "date_emission", header: "Date d'émission", render: (row) => formatDate(row.date_emission) },
+    { key: "date_emission", hideBelow: "lg", header: "Date d'émission", render: (row) => formatDate(row.date_emission) },
   ];
 
   const quoteColumns: DataTableColumn<Quote>[] = [

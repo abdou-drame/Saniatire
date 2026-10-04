@@ -81,7 +81,7 @@ export function ServiceTariffsSection() {
   const columns: DataTableColumn<ServiceTariff>[] = [
     { key: "code", header: "Code", accessor: (row) => row.code, sortable: true },
     { key: "libelle", header: "Prestation", accessor: (row) => row.libelle, sortable: true },
-    { key: "categorie", header: "Catégorie", accessor: (row) => row.categorie },
+    { key: "categorie", hideBelow: "lg", header: "Catégorie", accessor: (row) => row.categorie },
     {
       key: "prix_unitaire",
       header: "Montant",

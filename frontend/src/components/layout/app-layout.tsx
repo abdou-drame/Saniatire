@@ -1,6 +1,7 @@
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { BRAND_NAME } from "@/components/brand/brand-logo";
-import { Sidebar } from "@/components/layout/sidebar";
+import { Sidebar, SidebarDrawer } from "@/components/layout/sidebar";
 import { SubscriptionBanner } from "@/components/layout/subscription-banner";
 import { Topbar } from "@/components/layout/topbar";
 import { navigationSections } from "@/config/navigation";
@@ -22,6 +23,9 @@ export function AppLayout() {
   const navigate = useNavigate();
   const { user, logout, hasModule } = useAuth();
   const search = usePatientSearch();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const wasOpen = useRef(false);
 
   // Livraison B : entrées des modules coupés masquées (la liste vient de
   // /auth/me, le backend refuse de toute façon leurs routes).
@@ -36,7 +40,25 @@ export function AppLayout() {
     }))
     .filter((section) => section.items.length > 0);
 
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+
+  // Changement de page (lien du tiroir, recherche patient…) : tiroir fermé.
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [location.pathname]);
+
+  // À la fermeture du tiroir, le focus revient au bouton menu.
+  useEffect(() => {
+    if (drawerOpen) {
+      wasOpen.current = true;
+    } else if (wasOpen.current) {
+      wasOpen.current = false;
+      menuButtonRef.current?.focus();
+    }
+  }, [drawerOpen]);
+
   function handleLogout() {
+    setDrawerOpen(false);
     logout();
     navigate("/login", { replace: true });
   }
@@ -44,6 +66,7 @@ export function AppLayout() {
   return (
     <div className="flex h-screen bg-bg">
       <Sidebar sections={sections} />
+      <SidebarDrawer sections={sections} open={drawerOpen} onClose={closeDrawer} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar
           title={currentPageTitle(location.pathname)}
@@ -51,6 +74,9 @@ export function AppLayout() {
           userName={user ? `${user.first_name} ${user.last_name}` : "Utilisateur"}
           userRole={roleLabel(user?.roles[0])}
           onLogout={handleLogout}
+          menuButtonRef={menuButtonRef}
+          isMenuOpen={drawerOpen}
+          onOpenMenu={() => setDrawerOpen(true)}
           searchQuery={search.query}
           onSearchQueryChange={search.setQuery}
           searchResults={search.results}
@@ -63,7 +89,7 @@ export function AppLayout() {
           }}
         />
         <SubscriptionBanner subscription={user?.subscription} />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
           <Outlet />
         </main>
       </div>
