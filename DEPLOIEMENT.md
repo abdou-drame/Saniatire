@@ -229,7 +229,7 @@ Le répertoire `storage/` de Laravel contient :
 
 ## Étape 7 — Migrations (AUTOMATIQUES au démarrage)
 
-Les migrations s'appliquent **automatiquement à chaque déploiement** : la commande de démarrage de `nixpacks.toml` (`bash deploy/start.sh`) lance `php artisan deploy:migrate` puis, seulement si elle réussit, le serveur HTTP.
+Les migrations s'appliquent **automatiquement à chaque déploiement** : la commande de démarrage de `nixpacks.toml` lance `php artisan deploy:migrate` puis, seulement si elle réussit, le serveur HTTP.
 
 - **Plusieurs réplicas** : Dokploy n'a pas de phase « release » unique par déploiement, chaque instance lance donc la commande. Un verrou PostgreSQL (`pg_advisory_lock`) les sérialise : une seule applique les migrations, les autres attendent puis constatent « Nothing to migrate ».
 - **Migration en échec** : la commande sort en erreur, le serveur HTTP ne démarre pas (pas de schéma incomplet en service). L'erreur est visible dans **sanitaire-api → Logs** (logs du conteneur, pas les logs de build).
@@ -247,16 +247,6 @@ php artisan storage:link
 ```
 
 `php artisan migrate:status` reste disponible dans le terminal pour vérifier l'état.
-
-### Serveur HTTP : Nginx + PHP-FPM
-
-`deploy/start.sh` lance **Nginx** (port 8080, fichiers statiques) devant **PHP-FPM** (plusieurs workers PHP qui traitent les requêtes en parallèle). `php artisan serve` n'est plus utilisé en production : il ne traite qu'une requête à la fois.
-
-- **Logs attendus** : `[start] mémoire … Mo — PHP-FPM : N workers max`, puis `[start] Nginx + PHP-FPM prêts sur le port 8080`.
-- **Nombre de workers** : calculé automatiquement (moitié de la mémoire du conteneur ÷ 64 Mo, entre 4 et 32). Pour le fixer : variable `PHP_FPM_MAX_CHILDREN` dans **Environment**.
-- **Filet de sécurité** : si Nginx ou PHP-FPM est introuvable ou ne répond pas sur `/up`, le script se replie tout seul sur `php artisan serve` (log `repli sur php artisan serve`).
-- **Retour arrière manuel** : ajouter `SERVER_MODE=artisan` dans **Environment** puis **Redeploy** → ancien mode, sans toucher au code.
-- Fichiers : `deploy/start.sh`, `deploy/nginx.conf.template`, `deploy/php-fpm.conf`.
 
 ---
 

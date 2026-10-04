@@ -16,9 +16,7 @@ nixPkgs = [
   "php82Extensions.ctype",
   "php82Extensions.fileinfo",
   "php82Extensions.openssl",
-  "php82Extensions.intl",
-  # Serveur HTTP de production devant PHP-FPM (voir deploy/start.sh).
-  "nginx"
+  "php82Extensions.intl"
 ]
 
 [phases.install]
@@ -34,9 +32,7 @@ cmds = [
 ]
 
 [start]
-# deploy/start.sh applique les migrations (deploy:migrate) avant tout trafic
-# — si elles échouent, le conteneur ne démarre pas —, puis lance Nginx +
-# PHP-FPM sur le port 8080 (requêtes traitées en parallèle). Repli
-# automatique sur php artisan serve si Nginx/PHP-FPM ne démarrent pas ;
-# SERVER_MODE=artisan dans les variables Dokploy force ce repli.
-cmd = "bash deploy/start.sh"
+# Migrations appliquées à chaque démarrage, avant le serveur HTTP (voir
+# app/Console/Commands/DeployMigrateCommand.php) : si elles échouent, `&&`
+# empêche l'application de démarrer sur un schéma incomplet.
+cmd = "php artisan deploy:migrate && php artisan serve --host=0.0.0.0 --port=8080"
