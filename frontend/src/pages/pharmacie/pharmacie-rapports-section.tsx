@@ -124,7 +124,7 @@ export function PharmacieRapportsSection() {
               className="h-8 text-sm"
             >
               <option value="">Tous les sites</option>
-              {(sitesQuery.data?.data ?? []).map((s) => (
+              {(sitesQuery.data ?? []).map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
                 </option>
@@ -172,7 +172,7 @@ export function PharmacieRapportsSection() {
                     columns={venteColumns}
                     data={ventesQuery.data.data}
                     rowKey={(r) => r.id}
-                    emptyMessage="Aucune vente sur cette période."
+                    emptyState={<p className="p-4 text-sm text-text-subtle">Aucune vente sur cette période.</p>}
                   />
                 </CardContent>
               </Card>
@@ -209,7 +209,7 @@ export function PharmacieRapportsSection() {
                     columns={valorisationColumns}
                     data={valorisationQuery.data.data}
                     rowKey={(r) => `${r.product_id}-${r.site_id}`}
-                    emptyMessage="Aucun stock en cours."
+                    emptyState={<p className="p-4 text-sm text-text-subtle">Aucun stock en cours.</p>}
                   />
                 </CardContent>
               </Card>
@@ -237,7 +237,7 @@ export function PharmacieRapportsSection() {
                   columns={topColumns}
                   data={topProduitsQuery.data}
                   rowKey={(r) => r.product_id}
-                  emptyMessage="Aucune vente sur cette période."
+                  emptyState={<p className="p-4 text-sm text-text-subtle">Aucune vente sur cette période.</p>}
                 />
               </CardContent>
             </Card>

@@ -75,6 +75,7 @@ export interface CreateProductInput {
   unite_vente: string;
   dosage?: string;
   generic_catalog_ref?: string;
+  prix_vente_unitaire?: number;
 }
 
 export function useCreateProduct() {
