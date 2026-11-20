@@ -19,6 +19,7 @@ class ProductResource extends JsonResource
             'dosage' => $this->dosage,
             'categorie' => $this->categorie,
             'unite_vente' => $this->unite_vente,
+            'prix_vente_unitaire' => $this->prix_vente_unitaire,
             'actif' => $this->actif,
             'stock_total' => $this->when($this->stock_total !== null, fn () => (int) $this->stock_total),
             'created_at' => $this->created_at,

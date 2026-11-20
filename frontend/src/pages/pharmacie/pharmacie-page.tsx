@@ -1,4 +1,4 @@
-import { AlertTriangle, Clock, PackagePlus, PackageX, Pill, Plus } from "lucide-react";
+import { AlertTriangle, BarChart2, Clock, PackagePlus, PackageX, Pill, Plus } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ import { useSites } from "@/hooks/use-sites";
 import { apiErrorMessage } from "@/lib/api-error";
 import { formatDate } from "@/lib/datetime";
 import { PharmacieAlertesSection } from "@/pages/pharmacie/pharmacie-alertes-section";
+import { PharmacieRapportsSection } from "@/pages/pharmacie/pharmacie-rapports-section";
 import { CATEGORIE_BADGE, CATEGORIE_LABEL } from "@/pages/pharmacie/pharmacie-status";
 import type { Product, ProductBatch, ProductCategorie, StockThreshold } from "@/types/api";
 
@@ -90,6 +91,15 @@ export function PharmaciePage() {
       key: "unite_vente",
       header: "Unité de vente",
       render: (row) => row.unite_vente,
+    },
+    {
+      key: "prix_vente_unitaire",
+      header: "Prix vente",
+      align: "right",
+      render: (row) =>
+        row.prix_vente_unitaire != null
+          ? row.prix_vente_unitaire.toLocaleString("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+          : "—",
     },
     {
       key: "stock_total",
@@ -273,6 +283,17 @@ export function PharmaciePage() {
                   <p className="text-text">{productDetailQuery.data.unite_vente}</p>
                 </div>
                 <div>
+                  <p className="text-xs text-text-subtle">Prix de vente unitaire</p>
+                  <p className="text-text">
+                    {productDetailQuery.data.prix_vente_unitaire != null
+                      ? productDetailQuery.data.prix_vente_unitaire.toLocaleString("fr-FR", {
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 2,
+                        })
+                      : "—"}
+                  </p>
+                </div>
+                <div>
                   <p className="text-xs text-text-subtle">Stock total</p>
                   <p className="text-text">{productDetailQuery.data.stock_total ?? "—"}</p>
                 </div>
@@ -326,6 +347,20 @@ export function PharmaciePage() {
       )}
 
       <PharmacieAlertesSection />
+
+      {hasPermission("stock.view") && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <BarChart2 size={16} />
+              Rapports pharmacie
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PharmacieRapportsSection />
+          </CardContent>
+        </Card>
+      )}
 
       <StockMovementDialog
         open={movementDialogOpen}

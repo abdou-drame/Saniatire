@@ -24,12 +24,14 @@ class Product extends Model
         'dosage',
         'categorie',
         'unite_vente',
+        'prix_vente_unitaire',
         'actif',
     ];
 
     protected function casts(): array
     {
         return [
+            'prix_vente_unitaire' => 'decimal:2',
             'actif' => 'boolean',
         ];
     }

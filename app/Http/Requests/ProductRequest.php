@@ -23,6 +23,7 @@ class ProductRequest extends FormRequest
             'dosage' => ['nullable', 'string', 'max:255'],
             'categorie' => [$sometimesOnUpdate, 'in:medicament,consommable,dispositif_medical'],
             'unite_vente' => [$sometimesOnUpdate, 'string', 'max:255'],
+            'prix_vente_unitaire' => ['nullable', 'numeric', 'min:0'],
             'actif' => ['sometimes', 'boolean'],
         ];
     }

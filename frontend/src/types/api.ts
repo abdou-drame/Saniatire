@@ -1034,6 +1034,7 @@ export interface Product {
   dosage: string | null;
   categorie: ProductCategorie;
   unite_vente: string;
+  prix_vente_unitaire: number | null;
   actif: boolean;
   stock_total: number | null;
   created_at: string;
@@ -1095,6 +1096,72 @@ export interface StockLowThresholdAlert {
   stock_actuel: number;
   product: { id: number; nom_commercial: string; dci: string | null; unite_vente: string } | null;
   site: { id: number; name: string } | null;
+}
+
+export interface RapportVenteLigne {
+  id: number;
+  date: string;
+  product_id: number | null;
+  nom_commercial: string | null;
+  dci: string | null;
+  unite_vente: string | null;
+  site: string | null;
+  quantite: number;
+  prix_vente_unitaire: number;
+  prix_achat_unitaire: number;
+  montant_vente: number;
+  montant_achat: number;
+  marge: number;
+  dispensed_for_type: string | null;
+  dispensed_for_id: number | null;
+}
+
+export interface RapportVenteTotaux {
+  total_quantite: number;
+  total_ventes: number;
+  total_achats: number;
+  total_marge: number;
+  taux_marge: number;
+}
+
+export interface RapportVentesResponse {
+  data: RapportVenteLigne[];
+  totaux: RapportVenteTotaux;
+}
+
+export interface RapportValorisationLigne {
+  product_id: number;
+  nom_commercial: string;
+  dci: string | null;
+  unite_vente: string;
+  site_id: number | null;
+  site_name: string | null;
+  stock_total: number;
+  prix_achat_moyen: number;
+  prix_vente_unitaire: number;
+  valeur_achat: number;
+  valeur_vente: number;
+}
+
+export interface RapportValorisationTotaux {
+  valeur_achat_totale: number;
+  valeur_vente_totale: number;
+  plus_value_potentielle: number;
+}
+
+export interface RapportValorisationResponse {
+  data: RapportValorisationLigne[];
+  totaux: RapportValorisationTotaux;
+}
+
+export interface RapportTopProduitLigne {
+  product_id: number;
+  nom_commercial: string;
+  dci: string | null;
+  unite_vente: string;
+  total_quantite: number;
+  chiffre_affaires: number;
+  marge_totale: number;
 }
 
 export interface Supplier {
