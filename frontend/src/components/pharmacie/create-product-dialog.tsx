@@ -36,6 +36,7 @@ export function CreateProductDialog({ open, onOpenChange, onCreated }: CreatePro
   const [dosage, setDosage] = useState("");
   const [categorie, setCategorie] = useState<ProductCategorie>("medicament");
   const [uniteVente, setUniteVente] = useState("");
+  const [prixVente, setPrixVente] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const createProduct = useCreateProduct();
@@ -48,6 +49,7 @@ export function CreateProductDialog({ open, onOpenChange, onCreated }: CreatePro
       setDosage("");
       setCategorie("medicament");
       setUniteVente("");
+      setPrixVente("");
       setError(null);
     }
   }, [open]);
@@ -69,6 +71,7 @@ export function CreateProductDialog({ open, onOpenChange, onCreated }: CreatePro
         dosage: dosage.trim() || undefined,
         categorie,
         unite_vente: uniteVente.trim(),
+        prix_vente_unitaire: prixVente !== "" ? parseFloat(prixVente) : undefined,
       },
       {
         onSuccess: (product) => {
@@ -122,6 +125,18 @@ export function CreateProductDialog({ open, onOpenChange, onCreated }: CreatePro
               <Label>Unité de vente</Label>
               <Input value={uniteVente} onChange={(e) => setUniteVente(e.target.value)} placeholder="ex. Boîte" />
             </div>
+          </div>
+
+          <div>
+            <Label>Prix de vente unitaire (optionnel)</Label>
+            <Input
+              type="number"
+              min="0"
+              step="0.01"
+              value={prixVente}
+              onChange={(e) => setPrixVente(e.target.value)}
+              placeholder="ex. 1500"
+            />
           </div>
 
           <div>

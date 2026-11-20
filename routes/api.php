@@ -84,6 +84,7 @@ use App\Http\Controllers\Api\ReportExportController;
 use App\Http\Controllers\Api\ServiceTariffController;
 use App\Http\Controllers\Api\SessionController;
 use App\Http\Controllers\Api\SiteController;
+use App\Http\Controllers\Api\PharmacieRapportController;
 use App\Http\Controllers\Api\StockAlertController;
 use App\Http\Controllers\Api\StockMovementController;
 use App\Http\Controllers\Api\StockThresholdController;
@@ -451,6 +452,9 @@ Route::middleware(['auth:sanctum', 'tenant', 'two_factor', 'password_change', 's
         Route::apiResource('stock-thresholds', StockThresholdController::class);
         Route::get('/stock/alerts/low-threshold', [StockAlertController::class, 'lowThreshold']);
         Route::get('/stock/alerts/expiry', [StockAlertController::class, 'expiry']);
+        Route::get('/stock/rapports/ventes', [PharmacieRapportController::class, 'ventes']);
+        Route::get('/stock/rapports/valorisation', [PharmacieRapportController::class, 'valorisation']);
+        Route::get('/stock/rapports/top-produits', [PharmacieRapportController::class, 'topProduits']);
         Route::apiResource('stock-movements', StockMovementController::class)->only(['index', 'store']);
     });
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Facturation\Models\BillableItem;
 use App\Domain\Pharmacie\Models\ProductBatch;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StockMovementRequest;
@@ -56,10 +57,16 @@ class StockMovementController extends Controller implements HasMiddleware
                 'transfert' => $this->applyTransfert($batch, $data['quantite'], $data['destination_site_id']),
             };
 
-            return \App\Domain\Pharmacie\Models\StockMovement::create([
+            $movement = \App\Domain\Pharmacie\Models\StockMovement::create([
                 ...$data,
                 'user_id' => $request->user()->id,
             ])->refresh();
+
+            if ($data['type'] === 'sortie' && ! empty($data['dispensed_for_type']) && ! empty($data['dispensed_for_id'])) {
+                $this->createBillableItem($batch, $movement, $data);
+            }
+
+            return $movement;
         });
 
         return (new StockMovementResource($movement))->response()->setStatusCode(201);
@@ -107,5 +114,37 @@ class StockMovementController extends Controller implements HasMiddleware
                 'prix_achat_unitaire' => $batch->prix_achat_unitaire,
             ]);
         }
+    }
+
+    private function createBillableItem(ProductBatch $batch, \App\Domain\Pharmacie\Models\StockMovement $movement, array $data): void
+    {
+        $product = $batch->product;
+
+        $patientId = match ($data['dispensed_for_type']) {
+            'consultation' => \App\Domain\Consultation\Models\Consultation::find($data['dispensed_for_id'])?->patient_id,
+            'hospitalization' => \App\Domain\Hospitalisation\Models\Hospitalization::find($data['dispensed_for_id'])?->patient_id,
+            default => null,
+        };
+
+        if (! $patientId || ! $product) {
+            return;
+        }
+
+        $prixUnitaire = $product->prix_vente_unitaire ?? $batch->prix_achat_unitaire ?? 0;
+        $quantite = $data['quantite'];
+
+        BillableItem::create([
+            'structure_id' => $batch->structure_id,
+            'patient_id' => $patientId,
+            'billable_type' => \App\Domain\Pharmacie\Models\StockMovement::class,
+            'billable_id' => $movement->id,
+            'categorie' => 'pharmacie',
+            'code_prestation' => $product->generic_catalog_ref ?? 'PHARM-'.$product->id,
+            'libelle' => trim($product->nom_commercial.' '.$product->dosage),
+            'quantite' => $quantite,
+            'prix_unitaire' => $prixUnitaire,
+            'montant_total' => $prixUnitaire * $quantite,
+            'statut' => 'a_facturer',
+        ]);
     }
 }
